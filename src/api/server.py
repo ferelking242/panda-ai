@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,7 +37,6 @@ from src.log import setup_logging
 log = setup_logging("api_server")
 
 # Client HTML path
-_CLIENT_DIR = Path(__file__).resolve().parent.parent.parent / "client"
 
 
 def _make_client(provider: str, page):
@@ -393,35 +391,10 @@ async def healthz():
     return {"status": "ok"}
 
 
-@app.get("/", include_in_schema=False, response_class=HTMLResponse)
-async def root():
-    """Redirect to client app."""
-    from starlette.responses import RedirectResponse
-    return RedirectResponse(url="/app")
-
-
-@app.get("/app", include_in_schema=False, response_class=HTMLResponse)
-@app.get("/app/{path:path}", include_in_schema=False, response_class=HTMLResponse)
-async def serve_client(path: str = ""):
-    """Serve the Panda AI web client — no auth required."""
-    index = _CLIENT_DIR / "index.html"
-    if index.exists():
-        return HTMLResponse(content=index.read_text(encoding="utf-8"))
-    return HTMLResponse(content="<h1>Client not found</h1><p>client/index.html missing</p>", status_code=404)
-
-
-@app.get("/client", include_in_schema=False, response_class=HTMLResponse)
-async def test_client():
-    """Legacy client endpoint — redirects to /app."""
-    from starlette.responses import RedirectResponse
-    return RedirectResponse(url="/app")
-
-
-@app.get("/client.html", include_in_schema=False, response_class=HTMLResponse)
-async def test_client_html():
-    """Legacy client endpoint — redirects to /app."""
-    from starlette.responses import RedirectResponse
-    return RedirectResponse(url="/app")
+@app.get("/healthz", include_in_schema=False)
+async def healthz_root():
+    """Alias for /healthz."""
+    return {"status": "ok"}
 
 
 if __name__ == "__main__":

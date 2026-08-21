@@ -35,7 +35,15 @@ jobs:
       - run: pip install -r requirements.txt pyinstaller
       - run: python -m PyInstaller panda-ai.spec --clean
       - name: Package
-        run: cd dist && tar czf panda-ai-linux-x64.tar.gz panda-ai*
+        run: |
+          cd dist
+          # PyInstaller 6.x creates a folder with _internal
+          if [ -d panda-ai ]; then
+            tar czf panda-ai-linux-x64.tar.gz panda-ai/
+          elif [ -f panda-ai ]; then
+            tar czf panda-ai-linux-x64.tar.gz panda-ai
+          fi
+          ls -la
       - uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
@@ -53,7 +61,14 @@ jobs:
       - run: pip install -r requirements.txt pyinstaller
       - run: python -m PyInstaller panda-ai.spec --clean
       - name: Package
-        run: cd dist && tar czf panda-ai-macos-x64.tar.gz panda-ai*
+        run: |
+          cd dist
+          if [ -d panda-ai ]; then
+            tar czf panda-ai-macos-x64.tar.gz panda-ai/
+          elif [ -f panda-ai ]; then
+            tar czf panda-ai-macos-x64.tar.gz panda-ai
+          fi
+          ls -la
       - uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
@@ -71,7 +86,13 @@ jobs:
       - run: pip install -r requirements.txt pyinstaller
       - run: python -m PyInstaller panda-ai.spec --clean
       - name: Package
-        run: Compress-Archive -Path dist\panda-ai* -DestinationPath dist\panda-ai-windows-x64.zip
+        run: |
+          cd dist
+          if (Test-Path panda-ai) {
+            Compress-Archive -Path panda-ai -DestinationPath panda-ai-windows-x64.zip
+          } elseif (Test-Path panda-ai.exe) {
+            Compress-Archive -Path panda-ai.exe -DestinationPath panda-ai-windows-x64.zip
+          }
         continue-on-error: true
       - uses: actions/upload-artifact@v4
         continue-on-error: true
@@ -94,7 +115,7 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
         continue-on-error: true
         with:

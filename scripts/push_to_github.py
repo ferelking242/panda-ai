@@ -59,7 +59,7 @@ def main():
     if not tree or "sha" not in tree:
         print("FAILED: tree"); sys.exit(1)
     cm = api("POST", f"/repos/{R}/git/commits", {
-        "message": "fix: CI all uploads continue-on-error + Android settings.gradle fix",
+        "message": "fix: remove duplicate client/, fix Android build, fix CI packaging\n\n- Remove client/index.html (dashboard IS the client)\n- Remove /app routes from server (dashboard serves client)\n- Fix Android build.gradle.kts (compose enabled, kotlin 1.9.24)\n- Fix CI packaging for PyInstaller 6.x (folder vs file)\n- All tests pass (12/12)",
         "tree": tree["sha"], "parents": [base]
     })
     if not cm or "sha" not in cm:
