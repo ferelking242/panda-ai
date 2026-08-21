@@ -318,28 +318,18 @@ class BearerTokenMiddleware:
             await self.app(scope, receive, send)
             return
 
-        token = Config.API_TOKEN
-        if not token:
-            await self.app(scope, receive, send)
-            return
-
         path = scope.get("path", "").encode() if isinstance(scope.get("path"), str) else scope.get("raw_path", b"")
-        # Also check the string path for comparison
         path_str = scope.get("path", "")
         if path_str in {"/docs", "/redoc", "/openapi.json", "/healthz"}:
             await self.app(scope, receive, send)
             return
 
-        # Extract headers
+        # Extract token from headers/cookie
         headers = dict(scope.get("headers", []))
-
-        # 1. Check Authorization: Bearer <token>
-        auth_value = headers.get(b"authorization", b"").decode()
         provided = ""
+        auth_value = headers.get(b"authorization", b"").decode()
         if auth_value.startswith("Bearer "):
             provided = auth_value[7:]
-
-        # 2. Fallback: check Cookie: api_token=<token>
         if not provided:
             cookie_header = headers.get(b"cookie", b"").decode()
             for part in cookie_header.split(";"):
@@ -348,15 +338,28 @@ class BearerTokenMiddleware:
                     provided = part[len("api_token="):]
                     break
 
-        if provided != token:
+        # Validate: token store (new pnd_ tokens) OR legacy Config.API_TOKEN
+        from src.tokens import token_store, is_valid_format
+        token_valid = False
+        if provided:
+            # Try new token store first
+            if is_valid_format(provided):
+                meta = token_store.validate(provided)
+                if meta is not None:
+                    token_valid = True
+            # Fallback: legacy plain token (backward compat)
+            if not token_valid and Config.API_TOKEN:
+                if provided == Config.API_TOKEN:
+                    token_valid = True
+
+        if not token_valid:
             response = JSONResponse(
                 status_code=401,
                 content={
                     "error": {
                         "message": (
                             "Invalid or missing API token. "
-                            "Use Authorization: Bearer <API_TOKEN> header "
-                            "or api_token=<API_TOKEN> cookie."
+                            "Use Authorization: Bearer pnd_xxxx... header."
                         ),
                         "type": "auth_error",
                     }

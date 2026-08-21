@@ -538,6 +538,36 @@ class ChatGPTClient:
         log.info(f"Found {len(threads)} threads in sidebar")
         return threads
 
+    async def get_conversation_title(self) -> str:
+        """Extract the auto-generated conversation title from the UI.
+
+        ChatGPT names conversations based on the first message.
+        After sending the first message, the title appears in the sidebar
+        as the active conversation's text.
+        """
+        try:
+            # Strategy 1: look for the active sidebar item (highlighted)
+            title = await self._page.evaluate("""
+                () => {
+                    // Look for active/highlighted sidebar link
+                    const active = document.querySelector('a[aria-current="true"]');
+                    if (active) return active.innerText.trim();
+                    // Try data-active attribute
+                    const active2 = document.querySelector('nav a[data-active="true"]');
+                    if (active2) return active2.innerText.trim();
+                    // Try the page title which ChatGPT often sets
+                    const t = document.title || '';
+                    if (t && !t.includes('ChatGPT') && t.length > 2 && t.length < 200) return t;
+                    return '';
+                }
+            """)
+            if title:
+                log.info(f"Conversation title: {title[:80]}")
+                return title.strip()
+        except Exception as e:
+            log.debug(f"Title extraction failed: {e}")
+        return ""
+
     # ── Private Helpers ─────────────────────────────────────────
 
     async def _extract_image_turn_text(self, previous_turn_signature: str | None = None) -> str:

@@ -312,6 +312,25 @@ class ClaudeClient:
         log.info(f"Found {len(threads)} threads in sidebar")
         return threads
 
+    async def get_conversation_title(self) -> str:
+        """Extract the auto-generated conversation title from Claude's UI."""
+        try:
+            title = await self._page.evaluate("""
+                () => {
+                    const active = document.querySelector('a[aria-current="true"]');
+                    if (active) return active.innerText.trim();
+                    const t = document.title || '';
+                    if (t && !t.includes('Claude') && t.length > 2 && t.length < 200) return t;
+                    return '';
+                }
+            """)
+            if title:
+                log.info(f"Conversation title: {title[:80]}")
+                return title.strip()
+        except Exception as e:
+            log.debug(f"Title extraction failed: {e}")
+        return ""
+
     # ── Private Helpers ─────────────────────────────────────────
 
     async def _find_selector(self, selectors: list[str], name: str) -> str | None:

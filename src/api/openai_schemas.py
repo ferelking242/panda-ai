@@ -117,6 +117,7 @@ class ChatCompletionResponse(BaseModel):
     model: str = "catgpt-browser"
     choices: list[Choice]
     usage: UsageInfo = Field(default_factory=UsageInfo)
+    title: Optional[str] = Field(default=None, description="Auto-generated conversation title from the provider")
 
 
 # ── Models endpoint ─────────────────────────────────────────────

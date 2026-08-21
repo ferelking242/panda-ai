@@ -399,13 +399,55 @@ async def import_cookies(body: CookiesImport) -> JSONResponse:
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
 
+class TokenGenerateRequest(BaseModel):
+    name: str = "default"
+    scope: list[str] = ["*"]
+    expires_in_seconds: Optional[int] = None  # None = never
+    max_requests: Optional[int] = None        # None = unlimited
+
+
 @dashboard_router.post("/token/generate")
-async def generate_token() -> JSONResponse:
-    """Generate a new random API token and activate it immediately."""
-    from src.config import Config
-    token = secrets.token_hex(24)   # 48-char hex string
-    Config.API_TOKEN = token
-    return JSONResponse({"ok": True, "token": token})
+async def generate_token_endpoint(body: TokenGenerateRequest = TokenGenerateRequest()) -> JSONResponse:
+    """Generate a new pnd_ API token with metadata."""
+    from src.tokens import generate_token, token_store, TokenMeta
+
+    token = generate_token()
+    expires_at = (time.time() + body.expires_in_seconds) if body.expires_in_seconds else None
+    meta = TokenMeta(
+        name=body.name,
+        scope=body.scope,
+        expires_at=expires_at,
+        max_requests=body.max_requests,
+    )
+    token_store.register(token, meta)
+
+    return JSONResponse({
+        "ok": True,
+        "token": token,
+        "name": meta.name,
+        "scope": meta.scope,
+        "expires_at": meta.expires_at,
+        "max_requests": meta.max_requests,
+    })
+
+
+@dashboard_router.get("/tokens")
+async def list_tokens_endpoint() -> JSONResponse:
+    """List all active tokens."""
+    from src.tokens import token_store
+    return JSONResponse({"tokens": token_store.list_tokens()})
+
+
+class TokenRevokeRequest(BaseModel):
+    token: str
+
+
+@dashboard_router.post("/token/revoke")
+async def revoke_token_endpoint(body: TokenRevokeRequest) -> JSONResponse:
+    """Revoke (delete) a token."""
+    from src.tokens import token_store
+    revoked = token_store.revoke(body.token)
+    return JSONResponse({"ok": revoked, "message": "Token revoked" if revoked else "Token not found"})
 
 
 @dashboard_router.post("/settings/reset-session")

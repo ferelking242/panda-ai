@@ -1305,9 +1305,18 @@ async def _do_chat_completion(
         ),
     )
 
+    # -- Extract conversation title --
+    title = None
+    if hasattr(client, "get_conversation_title"):
+        try:
+            title = await client.get_conversation_title()
+            response.title = title or None
+        except Exception as e:
+            log.debug(f"Title extraction failed: {e}")
+
     log.info(
         f"Response: {elapsed_ms}ms, finish_reason={finish_reason}, "
-        f"tokens≈{response.usage.total_tokens}"
+        f"tokens≈{response.usage.total_tokens}, title={title}"
     )
 
     _increment_thread_count()

@@ -207,6 +207,26 @@ class GeminiClient:
         """AI Studio doesn't have a sidebar thread list — return empty."""
         return []
 
+    async def get_conversation_title(self) -> str:
+        """Extract the auto-generated prompt title from Gemini AI Studio."""
+        try:
+            title = await self._page.evaluate("""
+                () => {
+                    // AI Studio sets the prompt title in the page header
+                    const heading = document.querySelector('h1, .prompt-title, [data-prompt-title]');
+                    if (heading) return heading.innerText.trim();
+                    const t = document.title || '';
+                    if (t && !t.includes('AI Studio') && !t.includes('Gemini') && t.length > 2) return t;
+                    return '';
+                }
+            """)
+            if title:
+                log.info(f"Conversation title: {title[:80]}")
+                return title.strip()
+        except Exception as e:
+            log.debug(f"Title extraction failed: {e}")
+        return ""
+
     # ── Private helpers ──────────────────────────────────────────
 
     def _extract_thread_id(self) -> str:
