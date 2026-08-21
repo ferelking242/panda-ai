@@ -57,7 +57,6 @@ a = Analysis(
         'openai',
         'pypdf',
         'secrets',
-        'secrets',
         'src',
         'src.config',
         'src.log',

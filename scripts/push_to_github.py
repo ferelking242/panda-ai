@@ -61,7 +61,7 @@ def main():
     if not tree or "sha" not in tree: print("FAILED tree"); sys.exit(1)
 
     commit_data = {
-        "message": "fix: CI builds, Docker healthcheck, Termux backend, Android UI\n\n- Fix Dockerfile Python 3.9 → 3.13\n- Fix CI Docker healthcheck with retry loop\n- Fix PyInstaller hidden imports for all src modules\n- Fix artifact upload paths (separate Windows/Linux)\n- Add Termux setup script (android/setup-termux.sh)\n- Android app: backend detection, Termux helper card\n- Android app: dashboard/chat/docs navigation",
+        "message": "fix: CI artifact upload paths, duplicate hidden imports\n\n- Fix artifact upload with directory fallback and if-no-files-found: ignore\n- Remove duplicate 'secrets' in PyInstaller hidden imports",
         "tree": tree["sha"],
     }
     if base_sha: commit_data["parents"] = [base_sha]

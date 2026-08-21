@@ -67,16 +67,22 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: panda-ai-${{ matrix.os }}
-          path: dist/panda-ai
-          if-no-files-found: warn
+          path: |
+            dist/panda-ai
+            dist/panda-ai/
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Upload artifact (Windows)
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
           name: panda-ai-${{ matrix.os }}
-          path: dist/panda-ai.exe
-          if-no-files-found: warn
+          path: |
+            dist/panda-ai.exe
+            dist/panda-ai.exe/
+          if-no-files-found: ignore
+          retention-days: 7
 
   docker:
     runs-on: ubuntu-latest
