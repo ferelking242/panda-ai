@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🐼 Panda AI</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#e6edf3;
+  --muted:#8b949e;--accent:#00d4ff;--accent2:#7b2ff7;
+  --user-bg:#1f6feb;--assistant-bg:#1c2128;--error:#f85149;
+}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text)}
+a{color:var(--accent);text-decoration:none}
+
+/* ── Layout ─────────────────────────────────── */
+.app{display:flex;height:100vh;flex-direction:column}
+.header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+.header h1{font-size:18px;font-weight:700}
+.header .logo{font-size:22px}
+.status{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.status .dot{width:8px;height:8px;border-radius:50%;background:var(--error)}
+.status .dot.ok{background:#3fb950}
+
+/* ── Config bar ─────────────────────────────── */
+.config-bar{display:flex;gap:8px;padding:8px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap;flex-shrink:0}
+.config-bar input,.config-bar select{background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-size:12px;outline:none}
+.config-bar input:focus,.config-bar select:focus{border-color:var(--accent)}
+.config-bar input.url{flex:1;min-width:200px}
+.config-bar input.token{width:240px}
+.config-bar select{width:160px}
+.config-bar button{background:var(--accent);color:var(--bg);border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer}
+.config-bar button:hover{opacity:.85}
+.config-bar button.secondary{background:var(--surface);color:var(--muted);border:1px solid var(--border)}
+
+/* ── Chat area ──────────────────────────────── */
+.messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+.msg{max-width:85%;padding:12px 16px;border-radius:12px;font-size:14px;line-height:1.65;white-space:pre-wrap;word-break:break-word;animation:fadeIn .2s}
+.msg.user{align-self:flex-end;background:var(--user-bg);border-bottom-right-radius:3px}
+.msg.assistant{align-self:flex-start;background:var(--assistant-bg);border:1px solid var(--border);border-bottom-left-radius:3px}
+.msg.system{align-self:center;background:transparent;border:1px solid var(--border);color:var(--muted);font-size:12px;padding:6px 14px}
+.msg.error{align-self:center;background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.3);color:var(--error);font-size:12px;max-width:90%}
+.msg pre{background:#0d1117;padding:8px 12px;border-radius:6px;overflow-x:auto;margin:8px 0;font-size:13px}
+.msg code{font-family:'SF Mono','Fira Code',monospace;font-size:13px}
+.msg .title{font-size:11px;color:var(--accent);margin-bottom:4px;font-weight:600}
+.msg .meta{font-size:11px;color:var(--muted);margin-top:6px}
+.typing{display:flex;gap:4px;padding:12px 16px;align-self:flex-start}
+.typing span{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:bounce .6s infinite alternate}
+.typing span:nth-child(2){animation-delay:.2s}
+.typing span:nth-child(3){animation-delay:.4s}
+
+/* ── Input area ─────────────────────────────── */
+.input-area{padding:12px 16px;background:var(--surface);border-top:1px solid var(--border);display:flex;gap:8px;align-items:flex-end;flex-shrink:0}
+.input-area textarea{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px 14px;font-size:14px;font-family:inherit;resize:none;outline:none;min-height:42px;max-height:150px;line-height:1.5}
+.input-area textarea:focus{border-color:var(--accent)}
+.input-area button{cursor:pointer;border:none;border-radius:10px;font-size:14px;font-weight:600;height:42px;padding:0 18px}
+.btn-send{background:var(--accent);color:var(--bg)}
+.btn-send:hover{opacity:.85}
+.btn-send:disabled{background:var(--border);color:var(--muted);cursor:default}
+.btn-clear{background:transparent;border:1px solid var(--border);color:var(--muted);font-size:12px;width:42px}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@keyframes bounce{to{opacity:.3;transform:translateY(-4px)}}
+@media(max-width:640px){.config-bar{flex-direction:column}.config-bar input.token,.config-bar select{width:100%}}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <span class="logo">🐼</span>
+    <h1>Panda AI</h1>
+    <div class="status">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusText">Connecting…</span>
+    </div>
+  </div>
+
+  <!-- Config bar -->
+  <div class="config-bar">
+    <input class="url" id="apiUrl" placeholder="Gateway URL (http://localhost:8000)" />
+    <input class="token" id="apiToken" type="password" placeholder="API Token (pnd_...)" />
+    <select id="modelSelect">
+      <option value="gemini-browser">Gemini</option>
+      <option value="catgpt-browser">ChatGPT</option>
+      <option value="claude-browser">Claude</option>
+      <option value="deepseek-r1">DeepSeek</option>
+      <option value="grok-3">Grok</option>
+      <option value="mistral-large">Mistral</option>
+      <option value="qwen-max">Qwen</option>
+      <option value="kimi-k2">Kimi</option>
+    </select>
+    <button onclick="ping()" class="secondary">Ping</button>
+    <button onclick="send()">Send</button>
+  </div>
+
+  <!-- Messages -->
+  <div class="messages" id="messages">
+    <div class="msg system">Ready — configure your gateway URL and token, then start chatting.</div>
+  </div>
+
+  <!-- Input -->
+  <div class="input-area">
+    <textarea id="input" placeholder="Type a message…" rows="1"></textarea>
+    <button class="btn-clear" onclick="clearChat()">🗑</button>
+    <button class="btn-send" id="btnSend" onclick="send()">Send</button>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────
+const history = [];
+const msgs = document.getElementById('messages');
+const input = document.getElementById('input');
+
+// Auto-detect URL from current page
+document.getElementById('apiUrl').value = window.location.origin;
+
+// ── Helpers ────────────────────────────────────
+function addMsg(role, text, extra = '') {
+  const d = document.createElement('div');
+  d.className = 'msg ' + role;
+  if (extra) {
+    const m = document.createElement('div');
+    m.className = 'meta';
+    m.textContent = extra;
+    d.appendChild(m);
+  }
+  const t = document.createElement('div');
+  t.textContent = text;
+  d.appendChild(t);
+  msgs.appendChild(d);
+  msgs.scrollTop = msgs.scrollHeight;
+  return d;
+}
+
+function addHtml(role, html) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + role;
+  d.innerHTML = html;
+  msgs.appendChild(d);
+  msgs.scrollHeight = msgs.scrollHeight;
+  return d;
+}
+
+function showTyping() {
+  const d = document.createElement('div');
+  d.className = 'typing';
+  d.id = 'typing';
+  d.innerHTML = '<span></span><span></span><span></span>';
+  msgs.appendChild(d);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function hideTyping() {
+  const t = document.getElementById('typing');
+  if (t) t.remove();
+}
+
+function setStatus(ok, text) {
+  document.getElementById('statusDot').className = 'dot' + (ok ? ' ok' : '');
+  document.getElementById('statusText').textContent = text;
+}
+
+function getConfig() {
+  return {
+    url: document.getElementById('apiUrl').value.replace(/\/+$/, ''),
+    token: document.getElementById('apiToken').value.trim(),
+    model: document.getElementById('modelSelect').value,
+  };
+}
+
+// ── Ping ───────────────────────────────────────
+async function ping() {
+  const { url } = getConfig();
+  setStatus(false, 'Pinging…');
+  try {
+    const r = await fetch(url + '/healthz', { signal: AbortSignal.timeout(5000) });
+    if (r.ok) { setStatus(true, 'Connected'); addMsg('system', '✓ Gateway online'); }
+    else { setStatus(false, 'Error ' + r.status); addMsg('error', 'Gateway returned ' + r.status); }
+  } catch (e) {
+    setStatus(false, 'Offline');
+    addMsg('error', 'Cannot reach gateway: ' + e.message);
+  }
+}
+
+// ── Send ───────────────────────────────────────
+async function send() {
+  const txt = input.value.trim();
+  if (!txt) return;
+
+  const { url, token, model } = getConfig();
+
+  // Add user message
+  addMsg('user', txt);
+  history.push({ role: 'user', content: txt });
+  input.value = '';
+  input.style.height = '';
+
+  // Show typing
+  showTyping();
+  document.getElementById('btnSend').disabled = true;
+
+  const start = Date.now();
+
+  try {
+    const r = await fetch(url + '/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token,
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: history,
+      }),
+    });
+
+    hideTyping();
+
+    if (!r.ok) {
+      const err = await r.text();
+      addMsg('error', 'Error ' + r.status + ': ' + err.substring(0, 300));
+      return;
+    }
+
+    const data = await r.json();
+    const choice = data.choices?.[0];
+    const content = choice?.message?.content || '(empty response)';
+    const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+
+    // Show response
+    const title = data.title ? '📋 ' + data.title : '';
+    const meta = `${data.model || model} · ${elapsed}s · ${data.usage?.total_tokens || '?'} tokens`;
+    addMsg('assistant', content, meta + (title ? '\n' + title : ''));
+
+    // Add to history
+    history.push({ role: 'assistant', content: content });
+
+  } catch (e) {
+    hideTyping();
+    addMsg('error', 'Request failed: ' + e.message);
+  } finally {
+    document.getElementById('btnSend').disabled = false;
+    input.focus();
+  }
+}
+
+// ── Clear ──────────────────────────────────────
+function clearChat() {
+  history.length = 0;
+  msgs.innerHTML = '<div class="msg system">Conversation cleared.</div>';
+}
+
+// ── Input handling ─────────────────────────────
+input.addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+});
+
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    send();
+  }
+});
+
+// ── Auto-ping on load ──────────────────────────
+ping();
+</script>
+</body>
+</html>

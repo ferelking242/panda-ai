@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -35,6 +36,9 @@ from src.api.dashboard_routes import dashboard_router
 from src.log import setup_logging
 
 log = setup_logging("api_server")
+
+# Client HTML path
+_CLIENT_DIR = Path(__file__).resolve().parent.parent.parent / "client"
 
 
 def _make_client(provider: str, page):
@@ -200,7 +204,6 @@ async def lifespan(app: FastAPI):
             set_pool(pool)
 
             # For legacy routes (dashboard_routes, routes.py) inject the first slot's client
-            # Pool slots expose their client via the queue; grab one for registration only
             first_slot = pool._slots[0]
             if first_slot.client:
                 set_client(first_slot.client, first_slot.browser)
@@ -248,8 +251,6 @@ async def lifespan(app: FastAPI):
                     await asyncio.sleep(wait_time)
 
             # Apply stealth patches AFTER the first navigation.
-            # In Docker, applying stealth init scripts before navigation
-            # causes Chrome's DNS resolver to fail (ERR_NAME_NOT_RESOLVED).
             await _browser.apply_stealth_patches()
 
             await asyncio.sleep(3)
@@ -282,12 +283,12 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="CatGPT Gateway API",
+    title="Panda AI Gateway",
     description=(
-        "Browser automation API for ChatGPT and Claude. "
+        "Browser automation API for 8 AI providers. "
         "Sends messages via browser and returns responses."
     ),
-    version="1.0.0",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -392,122 +393,35 @@ async def healthz():
     return {"status": "ok"}
 
 
+@app.get("/", include_in_schema=False, response_class=HTMLResponse)
+async def root():
+    """Redirect to client app."""
+    from starlette.responses import RedirectResponse
+    return RedirectResponse(url="/app")
+
+
+@app.get("/app", include_in_schema=False, response_class=HTMLResponse)
+@app.get("/app/{path:path}", include_in_schema=False, response_class=HTMLResponse)
+async def serve_client(path: str = ""):
+    """Serve the Panda AI web client — no auth required."""
+    index = _CLIENT_DIR / "index.html"
+    if index.exists():
+        return HTMLResponse(content=index.read_text(encoding="utf-8"))
+    return HTMLResponse(content="<h1>Client not found</h1><p>client/index.html missing</p>", status_code=404)
+
+
 @app.get("/client", include_in_schema=False, response_class=HTMLResponse)
 async def test_client():
-    """HTML test client — no auth required."""
-    html = """<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🐼 Panda Gateway — Test</title>
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0d0d0d;color:#e8e8e8;height:100dvh;display:flex;flex-direction:column}
-  header{padding:14px 20px;background:#111;border-bottom:1px solid #222;display:flex;align-items:center;gap:10px;flex-shrink:0}
-  header h1{font-size:16px;font-weight:600}
-  .badge{font-size:11px;padding:2px 8px;border-radius:999px;background:#1a1a1a;border:1px solid #333;color:#888}
-  .badge.ok{border-color:#22c55e44;color:#22c55e;background:#22c55e11}
-  .badge.err{border-color:#ef444444;color:#ef4444;background:#ef444411}
-  #cfg{background:#111;border-bottom:1px solid #222;padding:10px 20px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0}
-  #cfg label{font-size:11px;color:#666}
-  #cfg input{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:6px;color:#e8e8e8;padding:5px 10px;font-size:12px;font-family:monospace;outline:none}
-  #cfg input.url{width:min(340px,100%)}
-  #cfg input.tok{width:min(260px,100%)}
-  #cfg select{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:6px;color:#e8e8e8;padding:5px 8px;font-size:12px;outline:none}
-  #msgs{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px}
-  .m{max-width:80%;padding:12px 16px;border-radius:12px;font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
-  .m.user{align-self:flex-end;background:#1d4ed8;border-bottom-right-radius:3px}
-  .m.assistant{align-self:flex-start;background:#1a1a1a;border:1px solid #2a2a2a;border-bottom-left-radius:3px}
-  .m.sys{align-self:center;background:transparent;border:1px solid #222;color:#555;font-size:12px;padding:6px 14px}
-  .m.err{align-self:center;background:#ef444411;border:1px solid #ef444433;color:#ef4444;font-size:12px;max-width:90%}
-  .dim{opacity:.4;font-style:italic}
-  #foot{padding:14px 20px;background:#111;border-top:1px solid #222;display:flex;gap:8px;align-items:flex-end;flex-shrink:0}
-  textarea{flex:1;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;color:#e8e8e8;padding:10px 14px;font-size:14px;font-family:inherit;resize:none;outline:none;min-height:42px;max-height:120px;line-height:1.5}
-  button{cursor:pointer;border:none;border-radius:10px;font-size:14px;font-weight:600;height:42px;padding:0 18px}
-  #bsend{background:#1d4ed8;color:#fff}
-  #bsend:hover{background:#2563eb}
-  #bsend:disabled{background:#222;color:#555;cursor:default}
-  #bclr{background:transparent;border:1px solid #2a2a2a;color:#666;padding:0 12px;font-size:12px}
-  .pbtn{background:#1a1a1a;border:1px solid #2a2a2a;color:#888;height:32px;padding:0 12px;font-size:12px;font-weight:400}
-</style>
-</head>
-<body>
-<header>
-  <span style="font-size:22px">🐼</span>
-  <h1>Panda Gateway</h1>
-  <span class="badge" id="st">—</span>
-</header>
-<div id="cfg">
-  <label>API URL</label>
-  <input id="url" class="url" value=""/>
-  <label>Token</label>
-  <input id="tok" class="tok" value="6dcbf607612135373f7270370e54325a7f1430a55395066c"/>
-  <label>Modèle</label>
-  <select id="mdl"><option>gpt-4o</option><option>gpt-4o-mini</option><option>gpt-4-turbo</option><option>gpt-3.5-turbo</option></select>
-  <button class="pbtn" onclick="ping()">Ping</button>
-</div>
-<div id="msgs"><div class="m sys">Prêt — clique Ping pour tester la connexion.</div></div>
-<div id="foot">
-  <textarea id="ta" placeholder="Message…" rows="1"></textarea>
-  <button id="bclr" onclick="clear_()">🗑</button>
-  <button id="bsend" onclick="send()">Envoyer</button>
-</div>
-<script>
-// Auto-detect: same host, same port
-document.getElementById('url').value = window.location.origin;
-
-const hist=[];
-const msgs=document.getElementById('msgs');
-const g=id=>document.getElementById(id);
-const cfg=()=>({url:g('url').value.replace(/\\/$/,''),tok:g('tok').value.trim(),mdl:g('mdl').value});
-function add(role,txt,cls=''){const d=document.createElement('div');d.className='m '+role+' '+cls;d.textContent=txt;msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;return d}
-function status(t,c=''){const e=g('st');e.textContent=t;e.className='badge '+c}
-
-async function ping(){
-  status('ping…');const{url,tok}=cfg();
-  try{
-    const r=await fetch(url+'/healthz');
-    if(r.ok){status('✓ connecté','ok');add('sys','✓ Gateway en ligne')}
-    else{status('✗ '+r.status,'err');add('err','HTTP '+r.status)}
-  }catch(e){status('✗ offline','err');add('err','Connexion impossible: '+e.message)}
-}
-
-async function send(){
-  const ta=g('ta');const txt=ta.value.trim();if(!txt)return;
-  const{url,tok,mdl}=cfg();
-  ta.value='';ta.style.height='';g('bsend').disabled=true;
-  hist.push({role:'user',content:txt});add('user',txt);
-  const th=add('assistant','…','dim');
-  try{
-    status('envoi…');
-    const r=await fetch(url+'/v1/chat/completions',{
-      method:'POST',
-      headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json'},
-      body:JSON.stringify({model:mdl,messages:hist,stream:false})
-    });
-    if(!r.ok){const t=await r.text();th.remove();add('err','Erreur '+r.status+': '+t);status('✗ '+r.status,'err');hist.pop();return}
-    const d=await r.json();
-    const rep=d.choices?.[0]?.message?.content??JSON.stringify(d);
-    hist.push({role:'assistant',content:rep});
-    th.textContent=rep;th.className='m assistant';status('✓ ok','ok');
-  }catch(e){th.remove();add('err','Erreur réseau: '+e.message);status('✗ err','err');hist.pop()}
-  finally{g('bsend').disabled=false;ta.focus()}
-}
-
-function clear_(){hist.length=0;msgs.innerHTML='<div class="m sys">Conversation effacée.</div>'}
-g('ta').addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'});
-g('ta').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
-ping();
-</script>
-</body>
-</html>"""
-    return HTMLResponse(content=html)
+    """Legacy client endpoint — redirects to /app."""
+    from starlette.responses import RedirectResponse
+    return RedirectResponse(url="/app")
 
 
 @app.get("/client.html", include_in_schema=False, response_class=HTMLResponse)
 async def test_client_html():
-    return await test_client()
+    """Legacy client endpoint — redirects to /app."""
+    from starlette.responses import RedirectResponse
+    return RedirectResponse(url="/app")
 
 
 if __name__ == "__main__":
