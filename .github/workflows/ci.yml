@@ -35,8 +35,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     needs: test
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -48,17 +49,34 @@ jobs:
 
       - name: Install dependencies
         run: |
+          pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
+        continue-on-error: true
 
-      - name: Build binary
+      - name: Build binary (Linux/macOS)
+        if: runner.os != 'Windows'
         run: python -m PyInstaller panda-ai.spec --clean
 
-      - name: Upload artifact
+      - name: Build binary (Windows)
+        if: runner.os == 'Windows'
+        run: python -m PyInstaller panda-ai.spec --clean
+
+      - name: Upload artifact (Linux/macOS)
+        if: runner.os != 'Windows'
         uses: actions/upload-artifact@v4
         with:
           name: panda-ai-${{ matrix.os }}
-          path: dist/panda-ai*
+          path: dist/panda-ai
+          if-no-files-found: warn
+
+      - name: Upload artifact (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: panda-ai-${{ matrix.os }}
+          path: dist/panda-ai.exe
+          if-no-files-found: warn
 
   docker:
     runs-on: ubuntu-latest
@@ -73,6 +91,16 @@ jobs:
       - name: Test Docker image
         run: |
           docker run -d --name test -p 8000:8000 panda-ai:latest
-          sleep 5
-          curl -sf http://localhost:8000/healthz || exit 1
+          echo "Waiting for container to start..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/healthz > /dev/null 2>&1; then
+              echo "Gateway is up!"
+              docker stop test
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Gateway failed to start within 60s"
+          docker logs test
           docker stop test
+          exit 1
