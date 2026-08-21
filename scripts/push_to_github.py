@@ -44,8 +44,16 @@ def main():
     blob_map = {}
     for i, (rel, full) in enumerate(files):
         try:
-            with open(full, "r", errors="replace") as fh:
-                content = fh.read()
+            with open(full, "rb") as fh:
+                raw = fh.read()
+            try:
+                content = raw.decode("utf-8")
+            except UnicodeDecodeError:
+                import base64
+                blob = api("POST", f"/repos/{R}/git/blobs", {"encoding": "base64", "content": base64.b64encode(raw).decode()})
+                if blob and "sha" in blob:
+                    blob_map[rel] = blob["sha"]
+                continue
         except Exception:
             continue
         blob = api("POST", f"/repos/{R}/git/blobs", {"encoding": "utf-8", "content": content})
@@ -59,7 +67,7 @@ def main():
     if not tree or "sha" not in tree:
         print("FAILED: tree"); sys.exit(1)
     cm = api("POST", f"/repos/{R}/git/commits", {
-        "message": "fix: minimal Android app — no AppCompat, no Compose, just WebView + Kotlin",
+        "message": "fix: add proper gradle-wrapper.jar + gradlew for Android build",
         "tree": tree["sha"], "parents": [base]
     })
     if not cm or "sha" not in cm:
