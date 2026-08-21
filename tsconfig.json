@@ -8,6 +8,6 @@
     "skipLibCheck": true,
     "allowJs": true
   },
-  "include": [],
+  "include": ["scripts/**/*.ts"],
   "exclude": ["node_modules"]
 }
