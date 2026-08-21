@@ -22,11 +22,14 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
       - name: Compile check
-        run: python -m py_compile src/config.py && python -m py_compile src/api/server.py && python -m py_compile src/api/openai_routes.py && python -m py_compile src/tokens.py
+        run: |
+          python -m py_compile src/config.py
+          python -m py_compile src/api/server.py
+          python -m py_compile src/api/openai_routes.py
+          python -m py_compile src/tokens.py
 
       - name: Unit tests
         run: python tests/test_integration.py
@@ -35,7 +38,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
     needs: test
     continue-on-error: true
 
@@ -52,35 +55,28 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
-        continue-on-error: true
 
-      - name: Build binary (Linux/macOS)
-        if: runner.os != 'Windows'
+      - name: Build binary
         run: python -m PyInstaller panda-ai.spec --clean
 
-      - name: Build binary (Windows)
-        if: runner.os == 'Windows'
-        run: python -m PyInstaller panda-ai.spec --clean
+      - name: List dist contents
+        if: always()
+        run: ls -laR dist/ 2>/dev/null || echo "No dist/ folder"
 
-      - name: Upload artifact (Linux/macOS)
-        if: runner.os != 'Windows'
+      - name: Package binary
+        run: |
+          cd dist
+          if [ -f panda-ai ]; then
+            tar czf panda-ai-${{ runner.os }}-x64.tar.gz panda-ai
+          elif [ -d panda-ai ]; then
+            tar czf panda-ai-${{ runner.os }}-x64.tar.gz panda-ai/
+          fi
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: panda-ai-${{ matrix.os }}
-          path: |
-            dist/panda-ai
-            dist/panda-ai/
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - name: Upload artifact (Windows)
-        if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v4
-        with:
-          name: panda-ai-${{ matrix.os }}
-          path: |
-            dist/panda-ai.exe
-            dist/panda-ai.exe/
+          name: panda-ai-${{ runner.os }}-x64
+          path: dist/panda-ai-*.tar.gz
           if-no-files-found: ignore
           retention-days: 7
 

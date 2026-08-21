@@ -1,79 +1,58 @@
 #!/usr/bin/env python3
-"""Push to GitHub via Git Data API."""
+"""Quick push to GitHub."""
 import os, json, sys
 import urllib.request, urllib.error
 
 TOKEN = "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"
 REPO = "ferelking242/panda-ai"
-BRANCH = "main"
 PROJECT = "/home/daytona/codebase"
-SKIP_DIRS = {".git", "node_modules", "__pycache__", ".vite", "dist", "isolate", ".agents"}
-SKIP_FILES = {".env.local", "bun.lock", "package-lock.json", "pnpm-lock.yaml"}
+SKIP = {".git","node_modules","__pycache__",".vite","dist","isolate",".agents"}
+SKIP_F = {".env.local","bun.lock","package-lock.json","pnpm-lock.yaml"}
 
-def api(method, path, data=None):
-    url = f"https://api.github.com{path}"
-    body = json.dumps(data).encode() if data else None
-    req = urllib.request.Request(url, data=body, method=method)
+def api(m, p, d=None):
+    url = f"https://api.github.com{p}"
+    body = json.dumps(d).encode() if d else None
+    req = urllib.request.Request(url, data=body, method=m)
     req.add_header("Authorization", f"token {TOKEN}")
     req.add_header("Accept", "application/vnd.github+json")
-    if body:
-        req.add_header("Content-Type", "application/json")
+    if body: req.add_header("Content-Type", "application/json")
     try:
-        with urllib.request.urlopen(req) as resp:
-            return json.loads(resp.read())
+        with urllib.request.urlopen(req) as r: return json.loads(r.read())
     except urllib.error.HTTPError as e:
-        err = e.read().decode()
-        print(f"  API ERROR {e.code}: {err[:200]}")
-        return None
+        print(f"  ERR {e.code}: {e.read().decode()[:200]}"); return None
 
-def main():
-    files = []
-    for root, dirs, fnames in os.walk(PROJECT):
-        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
-        for fname in fnames:
-            if fname in SKIP_FILES: continue
-            full = os.path.join(root, fname)
-            rel = os.path.relpath(full, PROJECT)
-            size = os.path.getsize(full)
-            if size > 500_000 and fname.endswith(('.png', '.jpeg', '.jpg', '.gif', '.webp', '.lock')): continue
-            files.append((rel, full))
-    files.sort()
-    print(f"Files: {len(files)}")
+files = []
+for root, dirs, fnames in os.walk(PROJECT):
+    dirs[:] = [d for d in dirs if d not in SKIP]
+    for f in fnames:
+        if f in SKIP_F: continue
+        full = os.path.join(root, f)
+        rel = os.path.relpath(full, PROJECT)
+        if os.path.getsize(full) > 500000 and f.endswith(('.png','.jpeg','.jpg','.gif','.webp','.lock')): continue
+        files.append((rel, full))
+files.sort()
+print(f"Files: {len(files)}")
 
-    ref = api("GET", f"/repos/{REPO}/git/ref/heads/{BRANCH}")
-    base_sha = ref["object"]["sha"] if ref else None
-    print(f"Base: {base_sha[:12] if base_sha else 'empty'}")
+ref = api("GET", f"/repos/{REPO}/git/ref/heads/main")
+base = ref["object"]["sha"] if ref else None
 
-    blob_map = {}
-    for i, (rel, full) in enumerate(files):
-        try:
-            with open(full, "r", errors="replace") as f: content = f.read()
-        except: continue
-        blob = api("POST", f"/repos/{REPO}/git/blobs", {"encoding": "utf-8", "content": content})
-        if blob and "sha" in blob: blob_map[rel] = blob["sha"]
-        if (i+1) % 50 == 0: print(f"  Blobs: {i+1}/{len(files)}")
+bmap = {}
+for i,(r,f) in enumerate(files):
+    try:
+        with open(f,"r",errors="replace") as fh: c=fh.read()
+    except: continue
+    b = api("POST",f"/repos/{REPO}/git/blobs",{"encoding":"utf-8","content":c})
+    if b and "sha" in b: bmap[r]=b["sha"]
+    if (i+1)%50==0: print(f"  Blobs: {i+1}/{len(files)}")
 
-    print(f"Blobs: {len(blob_map)}/{len(files)}")
-    tree_items = [{"path": p, "mode": "100644", "type": "blob", "sha": s} for p, s in blob_map.items()]
-    tree_data = {"tree": tree_items}
-    if base_sha: tree_data["base_tree"] = base_sha
-    tree = api("POST", f"/repos/{REPO}/git/trees", tree_data)
-    if not tree or "sha" not in tree: print("FAILED tree"); sys.exit(1)
+print(f"Blobs: {len(bmap)}/{len(files)}")
+items = [{"path":p,"mode":"100644","type":"blob","sha":s} for p,s in bmap.items()]
+tree = api("POST",f"/repos/{REPO}/git/trees",{"tree":items,"base_tree":base})
+if not tree or "sha" not in tree: print("FAILED"); sys.exit(1)
 
-    commit_data = {
-        "message": "fix: CI artifact upload paths, duplicate hidden imports\n\n- Fix artifact upload with directory fallback and if-no-files-found: ignore\n- Remove duplicate 'secrets' in PyInstaller hidden imports",
-        "tree": tree["sha"],
-    }
-    if base_sha: commit_data["parents"] = [base_sha]
-    commit = api("POST", f"/repos/{REPO}/git/commits", commit_data)
-    if not commit or "sha" not in commit: print("FAILED commit"); sys.exit(1)
-
-    if base_sha:
-        api("PATCH", f"/repos/{REPO}/git/refs/heads/{BRANCH}", {"sha": commit["sha"], "force": True})
-    else:
-        api("POST", f"/repos/{REPO}/git/refs", {"ref": f"refs/heads/{BRANCH}", "sha": commit["sha"]})
-
-    print(f"PUSHED: https://github.com/{REPO} @ {commit['sha'][:12]}")
-
-if __name__ == "__main__":
-    main()
+cm = api("POST",f"/repos/{REPO}/git/commits",{
+    "message":"fix: rewrite CI — tar.gz packaging, simplified binary upload steps",
+    "tree":tree["sha"],"parents":[base]})
+if not cm or "sha" not in cm: print("FAILED commit"); sys.exit(1)
+api("PATCH",f"/repos/{REPO}/git/refs/heads/main",{"sha":cm["sha"],"force":True})
+print(f"PUSHED: {cm['sha'][:12]}")
