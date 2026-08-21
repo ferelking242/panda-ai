@@ -1,53 +1,49 @@
 package com.pandaai.gateway
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.os.Bundle
 import android.webkit.*
-import androidx.appcompat.app.AppCompatActivity
-import android.view.View
 import android.widget.*
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : Activity() {
     private lateinit var webView: WebView
-    private lateinit var urlInput: EditText
-    private lateinit var connectBtn: Button
-    private lateinit var statusText: TextView
-    private lateinit var container: FrameLayout
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
 
-        webView = findViewById(R.id.webView)
-        urlInput = findViewById(R.id.urlInput)
-        connectBtn = findViewById(R.id.connectBtn)
-        statusText = findViewById(R.id.statusText)
-        container = findViewById(R.id.container)
+        val layout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
 
-        webView.settings.javaScriptEnabled = true
-        webView.settings.domStorageEnabled = true
-        webView.settings.allowFileAccess = true
-        webView.settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-
-        webView.webViewClient = object : WebViewClient() {
-            override fun onPageFinished(view: WebView?, url: String?) {
-                statusText.text = "● Connected"
-                statusText.setTextColor(0xFF22C55E.toInt())
-            }
-
-            override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
-                statusText.text = "● Error"
-                statusText.setTextColor(0xFFEF4444.toInt())
-            }
+        // URL bar
+        val urlInput = EditText(this).apply {
+            setText("http://10.0.2.2:8000")
+            hint = "Gateway URL"
         }
+        layout.addView(urlInput, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ))
+
+        val connectBtn = Button(this).apply { text = "Connect" }
+        layout.addView(connectBtn)
+
+        // WebView
+        webView = WebView(this).apply {
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.allowFileAccess = true
+        }
+        layout.addView(webView, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            0, 1f
+        ))
+
+        setContentView(layout)
 
         connectBtn.setOnClickListener {
             val url = urlInput.text.toString().trim()
             if (url.isNotEmpty()) {
-                statusText.text = "● Connecting..."
-                statusText.setTextColor(0xFFFFA500.toInt())
-                container.visibility = View.VISIBLE
                 webView.loadUrl("$url/app")
             }
         }
