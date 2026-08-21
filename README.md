@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://github.com/ferelking242/panda-ai">
-    <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1117,50:0f172a,100:1e1b4b&height=220&section=header&text=%F0%9F%90%BC%20PANDA%20AI%20GATEWAY&fontSize=40&fontColor=00d4ff&fontAlignY=35&desc=Browser-based%20OpenAI-compatible%20proxy%20for%208%20AI%20providers&descSize=14&descAlignY=55&descAlign=50&animation=fadeIn" width="100%" alt="Panda AI Banner"/>
+    <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1117,50:0f172a,100:1e1b4b&height=220&section=header&text=%F0%9F%90%BC%20PANDA%20AI%20GATEWAY&fontSize=40&fontColor=00d4ff&fontAlignY=35&desc=Browser-based%20OpenAI-compatible%20proxy%20for%208%20AI%20providers&descSize=14&descAlignY=55&descAlign=50&animation=fadeIn" width="100%"/>
   </a>
 </p>
 
@@ -9,9 +9,9 @@
 </p>
 
 <p align="center">
-  <a href="#-quick-start"><img src="https://img.shields.io/badge/QUICK_START-▶-00d4ff?style=for-the-badge&logo=github&logoColor=white" alt="Quick Start"/></a>
-  <a href="#-providers"><img src="https://img.shields.io/badge/PROVIDERS-8-7b2ff7?style=for-the-badge&logo=openai&logoColor=white" alt="Providers"/></a>
-  <a href="docs/API.md"><img src="https://img.shields.io/badge/API_DOCS-📖-22c55e?style=for-the-badge" alt="API Docs"/></a>
+  <a href="#-installation"><img src="https://img.shields.io/badge/INSTALL-📦-00d4ff?style=for-the-badge" alt="Install"/></a>
+  <a href="#-providers"><img src="https://img.shields.io/badge/PROVIDERS-8-7b2ff7?style=for-the-badge" alt="Providers"/></a>
+  <a href="docs/API.md"><img src="https://img.shields.io/badge/API_DOCS-📖-22c55e?style=for-the-badge" alt="API"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/LICENSE-MIT-orange?style=for-the-badge" alt="License"/></a>
 </p>
 
@@ -19,234 +19,217 @@
   <img src="https://img.shields.io/badge/python-3.13+-3776ab?style=flat-square&logo=python&logoColor=white" alt="Python"/>
   <img src="https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"/>
   <img src="https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker"/>
-  <img src="https://img.shields.io/badge/Patchright-333?style=flat-square" alt="Patchright"/>
-  <img src="https://img.shields.io/badge/OpenAI-Compatible-412991?style=flat-square&logo=openai&logoColor=white" alt="OpenAI Compatible"/>
+  <img src="https://img.shields.io/badge/OpenAI-Compatible-412991?style=flat-square&logo=openai&logoColor=white" alt="OpenAI"/>
+  <img src="https://img.shields.io/github/workflow/status/ferelking242/panda-ai/CI?style=flat-square&label=CI" alt="CI"/>
   <img src="https://img.shields.io/github/stars/ferelking242/panda-ai?style=flat-square&color=ffd700" alt="Stars"/>
-  <img src="https://img.shields.io/github/forks/ferelking242/panda-ai?style=flat-square" alt="Forks"/>
 </p>
 
 <br/>
 
----
-
 ## 🐼 What is this?
 
-You already pay for ChatGPT Plus, Claude Pro, or use free tiers of Gemini, DeepSeek, Grok, Mistral, Qwen, or Kimi. But the **official APIs cost extra** and the free tiers are limited.
+You already pay for ChatGPT Plus, Claude Pro, or use free tiers of Gemini, DeepSeek, Grok, Mistral, Qwen, or Kimi. But the **official APIs cost extra**.
 
 **Panda AI Gateway** turns your existing browser sessions into fully functional **OpenAI-compatible API servers**. It runs real browsers in the background, automates the web UIs, and exposes everything through standard API endpoints.
 
 ```python
 from openai import OpenAI
-
 client = OpenAI(base_url="http://localhost:8000/v1", api_key="pnd_yourtoken")
-
 response = client.chat.completions.create(
-    model="gemini-browser",  # or claude-browser, catgpt-browser, etc.
-    messages=[{"role": "user", "content": "Hello from my own API!"}]
+    model="gemini-browser",
+    messages=[{"role": "user", "content": "Hello!"}]
 )
-print(response.choices[0].message.content)
 ```
 
-> **That's it.** Your AI subscription just became an API.
-
 <br/>
 
-## ✨ Features
+## 📦 Installation
 
-<table>
-<tr>
-<td>
-
-**Core**
-- ✅ Chat completions
-- ✅ Multi-turn conversations
-- ✅ Tool / function calling
-- ✅ Image input (vision)
-- ✅ File attachments (PDF, DOCX)
-- ✅ Responses API (Codex CLI)
-- ✅ Provider fallback chain
-- ✅ Browser pool (parallel)
-
-</td>
-<td>
-
-**Providers**
-- 🟢 ChatGPT (DALL-E)
-- 🟣 Claude
-- 🔵 Gemini
-- 🔷 DeepSeek
-- ⚫ Grok
-- 🟠 Mistral
-- 🟤 Qwen
-- 🔴 Kimi
-
-</td>
-<td>
-
-**Platform**
-- 🐳 Docker deployment
-- 📱 Android (WebView)
-- 🖥️ Linux / Windows / Mac
-- 🔐 `pnd_` token auth
-- 📊 Dashboard API
-- 📝 Auto conversation titles
-- ⚡ Stealth anti-detection
-- 🔄 Auto session recovery
-
-</td>
-</tr>
-</table>
-
-<br/>
-
-## 🚀 Quick Start
-
-### Option 1: Docker (recommended)
+### 🐳 Docker (Recommended)
 
 ```bash
 git clone https://github.com/ferelking242/panda-ai.git
 cd panda-ai
-
-cp .env.example .env
-# Edit .env → set PROVIDER=gemini (or any provider)
-
+cp .env.example .env       # Edit: set PROVIDER, API_TOKEN
 docker compose up --build -d
 
-# Log in once via noVNC
+# Login once via noVNC browser
 open http://localhost:6080/vnc.html
+# Sign in with email + password (Google OAuth blocked)
 
 # Verify
 curl -H "Authorization: Bearer pnd_yourtoken" http://localhost:8000/v1/models
 ```
 
-### Option 2: Local
+### 🐍 Local Install (Linux / macOS / Windows)
 
 ```bash
 git clone https://github.com/ferelking242/panda-ai.git
 cd panda-ai
+
+# Create virtual environment
+python3 -m venv .venv
+source .venv/bin/activate    # Windows: .venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Install Chromium browser
+patchright install chromium
+
+# Configure
+cp .env.example .env
+# Edit .env → set PROVIDER, API_TOKEN
+
+# First login (one-time — browser window opens)
+python scripts/first_login.py
+
+# Start the gateway
+python -m src.api.server
+# API live at http://localhost:8000
+```
+
+### 📦 Binary Download (No Python required)
+
+Download a pre-built binary for your OS from [GitHub Releases](https://github.com/ferelking242/panda-ai/releases):
+
+| Platform | File | How to run |
+|----------|------|-----------|
+| Linux x64 | `panda-ai-linux-x64.tar.gz` | `tar xzf panda-ai-*.tar.gz && ./panda-ai` |
+| macOS x64/ARM | `panda-ai-macos-x64.tar.gz` | `tar xzf panda-ai-*.tar.gz && ./panda-ai` |
+| Windows | `panda-ai-windows-x64.zip` | Extract → double-click `panda-ai.exe` |
+
+```bash
+# Linux example
+tar xzf panda-ai-linux-x64.tar.gz
+cp .env.example .env   # Edit it
+./panda-ai
+```
+
+### 🏗️ Build Binary From Source
+
+```bash
+pip install pyinstaller
+python -m PyInstaller panda-ai.spec --clean
+# Output: dist/panda-ai (Linux/macOS) or dist/panda-ai.exe (Windows)
+```
+
+### 🖥️ VPS / Cloud Server (Headless)
+
+```bash
+# SSH into your VPS
+ssh root@your-server-ip
+
+# Install Python + deps
+apt update && apt install -y python3 python3-pip python3-venv git
+git clone https://github.com/ferelking242/panda-ai.git
+cd panda-ai
+
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 patchright install chromium
 
+# Configure for headless
 cp .env.example .env
-python scripts/first_login.py    # One-time login
-python -m src.api.server         # Start API
+cat > .env << 'EOF'
+PROVIDER=gemini
+API_TOKEN=pnd_yourtoken
+API_PORT=8000
+HEADLESS=true
+BROWSER_MODE=launch
+EOF
+
+# Login (one-time — needs a display, use VNC or X forwarding)
+python scripts/first_login.py
+
+# Start (use tmux/screen for persistence)
+tmux new -s panda
+python -m src.api.server
+# Ctrl+B D to detach
+
+# Open firewall
+ufw allow 8000
+
+# Access from anywhere: http://your-server-ip:8000/v1
 ```
 
-### Option 3: Android
+### 📱 Android (Termux — Full Backend on Phone)
+
+Run the **entire gateway natively on Android** via Termux:
+
+```bash
+# 1. Install Termux from F-Droid (NOT Play Store)
+#    https://f-droid.org/packages/com.termux/
+
+# 2. Setup
+pkg install git
+git clone https://github.com/ferelking242/panda-ai.git
+cd panda-ai
+bash android/setup-termux.sh
+
+# 3. Start
+bash start-panda.sh
+
+# 4. Open the Panda AI Android app → auto-detects localhost:8000
+```
+
+### 📱 Android (APK — Remote Gateway Only)
+
+If you just want the app to connect to a remote gateway:
 
 ```bash
 cd android/
 ./gradlew assembleRelease
-# APK in app/build/outputs/apk/
+adb install app/build/outputs/apk/release/app-release-unsigned.apk
 ```
 
-> 📖 Full guide: [docs/SETUP.md](docs/SETUP.md)
-
-<br/>
-
-## 🔌 Providers
-
-Set `PROVIDER` in your `.env` to switch. **8 providers** supported:
-
-<table>
-<tr><th>Provider</th><th><code>PROVIDER=</code></th><th>Model ID</th><th>URL</th><th>Features</th></tr>
-<tr><td>🟢 ChatGPT</td><td><code>chatgpt</code></td><td><code>catgpt-browser</code></td><td>chatgpt.com</td><td>DALL-E, Projects</td></tr>
-<tr><td>🟣 Claude</td><td><code>claude</code></td><td><code>claude-browser</code></td><td>claude.ai</td><td>Artifacts, Projects</td></tr>
-<tr><td>🔵 Gemini</td><td><code>gemini</code></td><td><code>gemini-2.0-flash</code></td><td>aistudio.google.com</td><td>Canvas, Gems</td></tr>
-<tr><td>🔷 DeepSeek</td><td><code>deepseek</code></td><td><code>deepseek-r1</code></td><td>chat.deepseek.com</td><td>Deep Think</td></tr>
-<tr><td>⚫ Grok</td><td><code>grok</code></td><td><code>grok-3</code></td><td>grok.com</td><td>Real-time X data</td></tr>
-<tr><td>🟠 Mistral</td><td><code>mistral</code></td><td><code>mistral-large</code></td><td>chat.mistral.ai</td><td>Codestral</td></tr>
-<tr><td>🟤 Qwen</td><td><code>qwen</code></td><td><code>qwen-max</code></td><td>chat.qwen.ai</td><td>Long context</td></tr>
-<tr><td>🔴 Kimi</td><td><code>kimi</code></td><td><code>kimi-k2</code></td><td>kimi.moonshot.cn</td><td>128k context</td></tr>
-</table>
-
-### 🔄 Fallback Chain
-
-If your primary provider goes down, Panda AI automatically falls back:
-
-```bash
-PROVIDER=gemini
-PROVIDER_CHAIN=gemini,claude,chatgpt
-```
-
-<br/>
-
-## 📦 Build & Deploy
-
-<table>
-<tr><th>Target</th><th>Command</th><th>Output</th></tr>
-<tr><td>🐳 Docker</td><td><code>docker compose up --build -d</code></td><td>Container on port 8000</td></tr>
-<tr><td>🐧 Linux</td><td><code>python -m PyInstaller panda-ai.spec</code></td><td><code>dist/panda-ai</code></td></tr>
-<tr><td>🪟 Windows</td><td><code>python -m PyInstaller panda-ai.spec</code></td><td><code>dist/panda-ai.exe</code></td></tr>
-<tr><td>🍎 macOS</td><td><code>python -m PyInstaller panda-ai.spec</code></td><td><code>dist/panda-ai</code></td></tr>
-<tr><td>📱 Android</td><td><code>cd android && ./gradlew assembleRelease</code></td><td><code>app.apk</code></td></tr>
-<tr><td>🌐 PWA</td><td>Deploy <code>dashboard/</code> to Vercel/Netlify</td><td>Web dashboard</td></tr>
-</table>
-
-```bash
-# Quick Docker
-docker compose up --build -d
-
-# Binary build (all platforms)
-pip install pyinstaller
-python -m PyInstaller panda-ai.spec --clean
-
-# Android
-cd android && ./gradlew assembleRelease
-```
+Or download the APK from [Releases](https://github.com/ferelking242/panda-ai/releases).
 
 <br/>
 
 ## 🔑 API Authentication
 
-Tokens use the clean `pnd_` format:
-
-```
-Authorization: Bearer pnd_7Kx9mQ2vL8rT4nY6cW1zP5aH3bN8
-```
-
-### Generate via Dashboard API
+Tokens use the clean `pnd_` format: `pnd_7Kx9mQ2vL8rT4nY6cW1zP5aH3bN8`
 
 ```bash
-# Create a token with name, expiry, and request limit
+# Set in .env
+API_TOKEN=pnd_yourtoken
+
+# Use in requests
+curl -H "Authorization: Bearer pnd_yourtoken" http://localhost:8000/v1/models
+```
+
+### Generate tokens with metadata
+
+```bash
 curl -X POST http://localhost:8000/api/dashboard/token/generate \
-  -H "Authorization: Bearer pnd_yourmasterkey" \
+  -H "Authorization: Bearer pnd_masterkey" \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "my-app",
-    "scope": ["chat", "models"],
-    "expires_in_seconds": 86400,
-    "max_requests": 1000
-  }'
+  -d '{"name": "my-app", "expires_in_seconds": 86400, "max_requests": 1000}'
 ```
 
 <br/>
 
-## 🏗️ Architecture
+## 🔌 Providers
 
-```
-┌─────────────────────────────────────────────────┐
-│              Your Application                     │
-│    (OpenAI SDK / LangChain / curl / Codex CLI)   │
-└──────────────────────┬──────────────────────────┘
-                       │ HTTP
-┌──────────────────────▼──────────────────────────┐
-│           Panda AI Gateway (FastAPI)              │
-│               localhost:8000                      │
-│  ┌──────────┐ ┌──────────┐ ┌──────────────────┐  │
-│  │ Token    │ │ Auth     │ │ Dashboard API    │  │
-│  │ Store    │ │ Middleware│ │ (stats/config)   │  │
-│  └──────────┘ └──────────┘ └──────────────────┘  │
-└──────────────────────┬──────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────┐
-│          Browser Pool (Patchright + Stealth)      │
-│  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐    │
-│  │ChatGPT │ │ Claude │ │ Gemini │ │  ...   │    │
-│  │browser │ │browser │ │browser │ │8 total │    │
-│  └────────┘ └────────┘ └────────┘ └────────┘    │
-└─────────────────────────────────────────────────┘
+Set `PROVIDER` in your `.env`:
+
+| Provider | `PROVIDER=` | Model | URL |
+|---|---|---|---|
+| 🟢 ChatGPT | `chatgpt` | `catgpt-browser` | chatgpt.com |
+| 🟣 Claude | `claude` | `claude-browser` | claude.ai |
+| 🔵 Gemini | `gemini` | `gemini-2.0-flash` | aistudio.google.com |
+| 🔷 DeepSeek | `deepseek` | `deepseek-r1` | chat.deepseek.com |
+| ⚫ Grok | `grok` | `grok-3` | grok.com |
+| 🟠 Mistral | `mistral` | `mistral-large` | chat.mistral.ai |
+| 🟤 Qwen | `qwen` | `qwen-max` | chat.qwen.ai |
+| 🔴 Kimi | `kimi` | `kimi-k2` | kimi.moonshot.cn |
+
+### Fallback chain
+
+```bash
+PROVIDER=gemini
+PROVIDER_CHAIN=gemini,claude,chatgpt
 ```
 
 <br/>
@@ -257,7 +240,6 @@ curl -X POST http://localhost:8000/api/dashboard/token/generate \
 ```python
 from openai import OpenAI
 client = OpenAI(base_url="http://localhost:8000/v1", api_key="pnd_xxx")
-
 response = client.chat.completions.create(
     model="claude-browser",
     messages=[{"role": "user", "content": "Explain quantum computing"}]
@@ -290,15 +272,16 @@ curl -X POST http://localhost:8000/v1/chat/completions \
 
 <br/>
 
-## ⚠️ Known Limitations
+## 📦 Build Targets
 
-| Limitation | Details |
-|---|---|
-| No streaming | Responses returned all at once (browser round-trip) |
-| Single concurrency per browser | Use `POOL_SIZE` for parallelism |
-| Response time | 5-30s per request (real browser) |
-| Session expiry | Re-login via noVNC after days/weeks |
-| Google OAuth blocked | Use email+password, Microsoft, or Apple |
+| Target | Command | Output |
+|---|---|---|
+| 🐳 Docker | `docker compose up --build -d` | Container on :8000 |
+| 🐍 Local | `python -m src.api.server` | Server on :8000 |
+| 📦 Binary | `python -m PyInstaller panda-ai.spec` | `dist/panda-ai` |
+| 🖥️ VPS | `tmux && python -m src.api.server` | Remote server |
+| 📱 Android Termux | `bash start-panda.sh` | Phone-native server |
+| 📱 Android APK | `./gradlew assembleRelease` | WebView app |
 
 <br/>
 
@@ -321,26 +304,33 @@ python scripts/test_langchain_tools.py
 ```
 panda-ai/
 ├── src/                    # Python gateway core
-│   ├── api/                # FastAPI routes (OpenAI + dashboard)
+│   ├── api/                # FastAPI (OpenAI + dashboard)
 │   ├── browser/            # Browser automation (stealth, pool)
-│   ├── chatgpt/            # ChatGPT provider
-│   ├── claude/             # Claude provider
-│   ├── gemini/             # Gemini provider
-│   ├── deepseek/           # DeepSeek provider
-│   ├── grok/               # Grok provider
-│   ├── mistral/            # Mistral provider
-│   ├── qwen/               # Qwen provider
-│   ├── kimi/               # Kimi provider
+│   ├── chatgpt/claude/gemini/deepseek/grok/mistral/qwen/kimi/
 │   ├── tokens.py           # pnd_ token management
-│   └── config.py           # Centralized configuration
-├── android/                # Android WebView wrapper
+│   └── config.py           # Configuration
+├── android/                # Android app + Termux scripts
 ├── dashboard/              # Next.js admin dashboard
 ├── scripts/                # Test scripts + utilities
 ├── docker/                 # Docker support files
 ├── docs/                   # Documentation
 ├── tests/                  # Unit tests
-└── docker-compose.yml
+├── panda-ai.spec           # PyInstaller binary spec
+├── Dockerfile              # Docker image
+└── docker-compose.yml      # Docker Compose
 ```
+
+<br/>
+
+## ⚠️ Known Limitations
+
+| Limitation | Details |
+|---|---|
+| No streaming | Responses returned all at once |
+| Single concurrency per browser | Use `POOL_SIZE` for parallelism |
+| Response time | 5-30s per request (real browser) |
+| Session expiry | Re-login via noVNC |
+| Google OAuth blocked | Use email+password, Microsoft, or Apple |
 
 <br/>
 
@@ -348,7 +338,7 @@ panda-ai/
 
 <p align="center">
   <a href="https://github.com/ferelking242/panda-ai">
-    <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1117,50:0f172a,100:1e1b4b&height=100&section=footer" width="100%" alt="Footer"/>
+    <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1117,50:0f172a,100:1e1b4b&height=100&section=footer" width="100%"/>
   </a>
 </p>
 

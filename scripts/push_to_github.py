@@ -59,7 +59,7 @@ def main():
     if not tree or "sha" not in tree:
         print("FAILED: tree"); sys.exit(1)
     cm = api("POST", f"/repos/{R}/git/commits", {
-        "message": "fix: CI upload continue-on-error so builds dont fail on artifact upload",
+        "message": "feat: complete Android project + full install instructions README\n\n- Complete Android project (build.gradle, settings, manifest, gradlew)\n- Android README with Termux/APK/VPS instructions\n- Main README rewritten with 6 install methods:\n  Docker, Local, Binary, VPS, Android Termux, Android APK\n- Auth examples, provider table, build targets table",
         "tree": tree["sha"], "parents": [base]
     })
     if not cm or "sha" not in cm:
