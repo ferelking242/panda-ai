@@ -59,7 +59,7 @@ def main():
     if not tree or "sha" not in tree:
         print("FAILED: tree"); sys.exit(1)
     cm = api("POST", f"/repos/{R}/git/commits", {
-        "message": "fix: remove duplicate client/, fix Android build, fix CI packaging\n\n- Remove client/index.html (dashboard IS the client)\n- Remove /app routes from server (dashboard serves client)\n- Fix Android build.gradle.kts (compose enabled, kotlin 1.9.24)\n- Fix CI packaging for PyInstaller 6.x (folder vs file)\n- All tests pass (12/12)",
+        "message": "fix: rewrite Android app — pure WebView, no Compose, Kotlin 1.9 + AGP 8.2\n\n- Remove Compose dependency (was causing build failures)\n- Simple WebView + AppCompat activity\n- Layout XML instead of Compose\n- AGP 8.2.2 + Kotlin 1.9.22 (stable, well-tested)\n- Remove duplicate client/index.html\n- Server no longer serves /app (dashboard IS the client)",
         "tree": tree["sha"], "parents": [base]
     })
     if not cm or "sha" not in cm:
