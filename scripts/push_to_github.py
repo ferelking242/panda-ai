@@ -61,7 +61,7 @@ def main():
     if not tree or "sha" not in tree: print("FAILED tree"); sys.exit(1)
 
     commit_data = {
-        "message": "feat: pnd_ tokens, title extraction, dashboard API improvements\n\n- New pnd_ token format (36 chars, clean prefix)\n- Token metadata: name, scope, expiry, max_requests\n- Token generate/list/revoke endpoints on dashboard API\n- Conversation title extraction from ChatGPT/Claude/Gemini UI\n- Title included in /v1/chat/completions response\n- Auth middleware supports both new pnd_ tokens and legacy tokens",
+        "message": "feat: SVG logo, stylized README, binary builds, Android wrapper, CI/CD\n\n- New cyberpunk panda SVG logo\n- README with capsule render, shields, typing SVG, provider table\n- PyInstaller spec for Linux/Windows/Mac binaries\n- Android WebView wrapper (Kotlin/Compose)\n- GitHub Actions CI (test + build + Docker)\n- Dashboard API endpoints (token CRUD)",
         "tree": tree["sha"],
     }
     if base_sha: commit_data["parents"] = [base_sha]
