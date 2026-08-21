@@ -59,7 +59,7 @@ def main():
     if not tree or "sha" not in tree:
         print("FAILED: tree"); sys.exit(1)
     cm = api("POST", f"/repos/{R}/git/commits", {
-        "message": "fix: CI artifact if-no-files-found warn + Android settings.gradle",
+        "message": "fix: CI all uploads continue-on-error + Android settings.gradle fix",
         "tree": tree["sha"], "parents": [base]
     })
     if not cm or "sha" not in cm:
