@@ -1,1 +1,1 @@
-{"version":"7.0.2","errors":true,"root":[]}
+{"version":"7.0.2","root":["./scripts/types.d.ts"],"packageJsons":["./package.json"]}
