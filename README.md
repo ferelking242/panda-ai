@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="assets/catgpt_gatway_logo.jpeg" width="200" alt="CatGPT Gateway Logo" />
+  <img src="assets/catgpt_gatway_logo.jpeg" width="200" alt="Panda AI Gateway Logo" />
 </p>
 
-<h1 align="center">CatGPT Gateway</h1>
+<h1 align="center">🐼 Panda AI Gateway</h1>
 
 <p align="center">
-  <strong>Turn your ChatGPT or Claude account into a fully working OpenAI-compatible API.</strong><br/>
+  <strong>Turn any AI chat account into a fully working OpenAI-compatible API.</strong><br/>
   No API keys needed. Just your browser login.
 </p>
 
@@ -13,81 +13,84 @@
   <a href="#quick-start">Quick Start</a> &bull;
   <a href="#providers">Providers</a> &bull;
   <a href="docs/API.md">API Docs</a> &bull;
-  <a href="docs/SETUP.md">Full Setup Guide</a> &bull;
-  <a href="docs/ARCHITECTURE.md">How It Works</a> &bull;
-  <a href="CONTRIBUTING.md">Contributing</a>
+  <a href="docs/SETUP.md">Setup Guide</a> &bull;
+  <a href="docs/ARCHITECTURE.md">Architecture</a>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/python-3.9+-blue?style=flat-square" alt="Python 3.9+" />
-  <img src="https://img.shields.io/badge/providers-Claude_%7C_ChatGPT-purple?style=flat-square" alt="Providers" />
-  <img src="https://img.shields.io/badge/API-OpenAI_compatible-green?style=flat-square" alt="OpenAI Compatible" />
+  <img src="https://img.shields.io/badge/python-3.13+-blue?style=flat-square" alt="Python 3.13+" />
+  <img src="https://img.shields.io/badge/providers-8-green?style=flat-square" alt="8 Providers" />
+  <img src="https://img.shields.io/badge/API-OpenAI_compatible-brightgreen?style=flat-square" alt="OpenAI Compatible" />
   <img src="https://img.shields.io/badge/docker-ready-blue?style=flat-square" alt="Docker" />
-  <img src="https://img.shields.io/github/license/GautamVhavle/CatGPT-Gateway?style=flat-square" alt="MIT License" />
-  <img src="https://img.shields.io/github/stars/GautamVhavle/CatGPT-Gateway?style=flat-square" alt="Stars" />
+  <img src="https://img.shields.io/badge/license-MIT-orange?style=flat-square" alt="MIT License" />
 </p>
 
 ---
 
 ## What is this?
 
-You already pay for ChatGPT Plus or have a free Claude account. But the official APIs cost extra and the free tiers are limited.
+You already pay for ChatGPT Plus, Claude Pro, or use free tiers of Gemini, DeepSeek, Grok, Mistral, Qwen, or Kimi. But the official APIs cost extra and the free tiers are limited.
 
-**CatGPT Gateway** turns your existing browser session into a fully functional OpenAI-compatible API server. It runs a real browser in the background, automates the web UI, and exposes everything through standard API endpoints that work with the OpenAI Python SDK, LangChain, and anything that speaks the OpenAI protocol.
+**Panda AI Gateway** turns your existing browser sessions into fully functional OpenAI-compatible API servers. It runs real browsers in the background, automates the web UIs, and exposes everything through standard API endpoints that work with the OpenAI Python SDK, LangChain, and anything that speaks the OpenAI protocol.
 
 ```python
-# This just works. Point any OpenAI client at your local gateway.
 from openai import OpenAI
 
 client = OpenAI(base_url="http://localhost:8000/v1", api_key="dummy123")
 
 response = client.chat.completions.create(
-    model="claude-browser",  # or "catgpt-browser" for ChatGPT
+    model="gemini-browser",  # or claude-browser, catgpt-browser, etc.
     messages=[{"role": "user", "content": "Hello from my own API!"}]
 )
 print(response.choices[0].message.content)
 ```
 
-That's it. Your Claude or ChatGPT subscription just became an API.
+That's it. Your AI subscription just became an API.
 
 ---
 
 ## Features
 
-| Feature | Claude | ChatGPT |
-|---|:---:|:---:|
-| Chat completions | Yes | Yes |
-| Multi-turn conversations | Yes | Yes |
-| Tool / function calling | Yes | Yes |
-| Image input (vision) | Yes | Yes |
-| File attachments (PDF, DOCX, etc.) | Yes | Yes |
-| Image generation (DALL-E) | -- | Yes |
-| Interactive TUI (terminal chat) | Yes | Yes |
-| OpenAI SDK compatible | Yes | Yes |
-| LangChain compatible | Yes | Yes |
-| Docker deployment | Yes | Yes |
+| Feature | ChatGPT | Claude | Gemini | DeepSeek | Grok | Mistral | Qwen | Kimi |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| Chat completions | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Multi-turn conversations | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Tool / function calling | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Image input (vision) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| File attachments (PDF, DOCX) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Image generation (DALL-E) | ✅ | — | — | — | — | — | — | — |
+| OpenAI SDK compatible | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| LangChain compatible | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Docker deployment | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Provider fallback chain | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Browser pool (parallel) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Responses API (Codex CLI) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
 ## Providers
 
-CatGPT Gateway supports two providers. Set `PROVIDER` in your `.env` file to switch.
+Set `PROVIDER` in your `.env` file to switch. 8 providers supported:
 
-### Claude (`PROVIDER=claude`)
+| Provider | `PROVIDER=` | Model ID | URL |
+|---|---|---|---|
+| **ChatGPT** | `chatgpt` | `catgpt-browser` | chatgpt.com |
+| **Claude** | `claude` | `claude-browser` | claude.ai |
+| **Gemini** | `gemini` | `gemini-2.0-flash` | aistudio.google.com |
+| **DeepSeek** | `deepseek` | `deepseek-r1` | chat.deepseek.com |
+| **Grok** | `grok` | `grok-3` | grok.com |
+| **Mistral** | `mistral` | `mistral-large` | chat.mistral.ai |
+| **Qwen** | `qwen` | `qwen-max` | chat.qwen.ai |
+| **Kimi** | `kimi` | `kimi-k2` | kimi.moonshot.cn |
 
-Use your existing Anthropic account (free or Pro). The gateway connects to `claude.ai` and exposes Claude as an OpenAI-compatible API.
+### Provider Fallback Chain
 
-- Model ID: `claude-browser`
-- Works with: Free tier, Pro, Team
-- Image generation: Not supported (returns 501)
+If your primary provider goes down, Panda AI can automatically fall back to another:
 
-### ChatGPT (`PROVIDER=chatgpt`)
-
-Use your existing OpenAI account (free or Plus). The gateway connects to `chatgpt.com` and exposes ChatGPT as an OpenAI-compatible API.
-
-- Model ID: `catgpt-browser`
-- Works with: Free tier, Plus, Team
-- Image generation: Supported via DALL-E
+```bash
+PROVIDER=gemini
+PROVIDER_CHAIN=gemini,claude,chatgpt
+```
 
 ---
 
@@ -96,56 +99,46 @@ Use your existing OpenAI account (free or Plus). The gateway connects to `chatgp
 ### Option 1: Docker (recommended)
 
 ```bash
-# Clone the repo
-git clone https://github.com/GautamVhavle/CatGPT-Gateway.git
-cd CatGPT-Gateway
+git clone https://github.com/ferelking242/panda-ai.git
+cd panda-ai
 
-# Copy the example env and pick your provider
 cp .env.example .env
-# Edit .env -> set PROVIDER=claude or PROVIDER=chatgpt
+# Edit .env → set PROVIDER=gemini (or any provider)
 
-# Build and start
 docker compose up --build -d
 
-# Open the browser UI to log in (one-time)
+# Log in once via noVNC
 open http://localhost:6080/vnc.html
-# Sign into Claude or ChatGPT using EMAIL + PASSWORD or Microsoft/Apple/magic link
-# ⚠ Google login is blocked by Google in automated browser contexts — don't use it
-# Close the noVNC tab when done - your session is saved to a Docker volume
+# Sign in with EMAIL + PASSWORD (Google OAuth is blocked in automated browsers)
 
-# Verify it works
+# Verify
 curl -H "Authorization: Bearer dummy123" http://localhost:8000/v1/models
 ```
 
-### Option 2: Local (no Docker)
+### Option 2: Local
 
 ```bash
-# Clone and setup
-git clone https://github.com/GautamVhavle/CatGPT-Gateway.git
-cd CatGPT-Gateway
+git clone https://github.com/ferelking242/panda-ai.git
+cd panda-ai
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 patchright install chromium
 
-# Copy env and pick your provider
 cp .env.example .env
+# Edit .env → set PROVIDER
 
-# First login (one-time - a browser window opens)
-# Use email + password, Microsoft, Apple, or magic link — NOT Google OAuth
+# First login (one-time)
 python scripts/first_login.py
 
-# Start the API server
+# Start
 python -m src.api.server
-# API is now live at http://localhost:8000
 ```
 
-> For the full setup guide with Docker internals, Nix flake, systemd service, and troubleshooting, see [docs/SETUP.md](docs/SETUP.md).
+> Full guide with Docker internals, Nix flake, systemd, and troubleshooting: [docs/SETUP.md](docs/SETUP.md)
 
 ---
 
 ## Usage
-
-Once the server is running, you can use it with any OpenAI-compatible client.
 
 ### Python (OpenAI SDK)
 
@@ -154,10 +147,9 @@ from openai import OpenAI
 
 client = OpenAI(base_url="http://localhost:8000/v1", api_key="dummy123")
 
-# Simple chat
 response = client.chat.completions.create(
-    model="claude-browser",
-    messages=[{"role": "user", "content": "Explain quantum computing in simple terms"}]
+    model="gemini-browser",
+    messages=[{"role": "user", "content": "Explain quantum computing"}]
 )
 print(response.choices[0].message.content)
 ```
@@ -172,7 +164,7 @@ llm = ChatOpenAI(
     base_url="http://localhost:8000/v1",
     api_key="dummy123",
 )
-response = llm.invoke("What are the best practices for REST API design?")
+response = llm.invoke("Best practices for REST API design?")
 print(response.content)
 ```
 
@@ -183,18 +175,15 @@ curl -X POST http://localhost:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer dummy123" \
   -d '{
-    "model": "claude-browser",
+    "model": "gemini-browser",
     "messages": [{"role": "user", "content": "Hello!"}]
   }'
 ```
 
 ### Tool / Function Calling
 
-Full round-trip tool calling works with both providers. Define tools, let the model call them, send results back.
-
 ```python
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, ToolMessage
 from langchain_core.tools import tool
 
 @tool
@@ -202,142 +191,138 @@ def get_weather(city: str) -> str:
     """Get the current weather for a city."""
     return f"Sunny, 25C in {city}"
 
-llm = ChatOpenAI(
-    model="claude-browser",
-    base_url="http://localhost:8000/v1",
-    api_key="dummy123",
-)
-
+llm = ChatOpenAI(model="claude-browser", base_url="http://localhost:8000/v1", api_key="dummy123")
 llm_with_tools = llm.bind_tools([get_weather])
 response = llm_with_tools.invoke("What's the weather in Tokyo?")
-
-# Model returns structured tool calls
 print(response.tool_calls)
-# [{'name': 'get_weather', 'args': {'city': 'Tokyo'}, 'id': 'call_...'}]
-
-# Execute the tool and send results back
-messages = [HumanMessage(content="What's the weather in Tokyo?"), response]
-result = get_weather.invoke(response.tool_calls[0]["args"])
-messages.append(ToolMessage(content=result, tool_call_id=response.tool_calls[0]["id"]))
-
-final = llm_with_tools.invoke(messages)
-print(final.content)
-# "It's sunny and 25C in Tokyo!"
 ```
 
-### Image Generation (ChatGPT only)
+### Responses API (Codex CLI compatible)
 
-```python
-response = client.images.generate(
-    prompt="A cyberpunk cat hacking into a mainframe",
-    model="dall-e-3",
-    n=1,
-    response_format="b64_json",
-)
+```bash
+curl -X POST http://localhost:8000/v1/responses \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer dummy123" \
+  -d '{
+    "model": "gemini-browser",
+    "input": "Write a hello world in Python"
+  }'
 ```
 
-> For the complete API reference with vision input, file attachments, image generation, tool_choice, and the custom REST API, see [docs/API.md](docs/API.md).
+> Full API reference: [docs/API.md](docs/API.md)
 
 ---
 
 ## Configuration
 
-Copy `.env.example` to `.env` and edit to your needs:
-
 ```bash
 cp .env.example .env
 ```
 
-Key settings:
-
 | Variable | Default | Description |
 |---|---|---|
-| `PROVIDER` | `chatgpt` | Which provider to use: `chatgpt` or `claude` |
-| `BROWSER_DATA_DIR` | `./browser_data` | Browser profile directory (keeps your login) |
-| `API_TOKEN` | `dummy123` | Bearer token for API authentication |
-| `API_PORT` | `8000` | Port the API server listens on |
-| `HEADLESS` | `false` | Run browser without display (not recommended) |
+| `PROVIDER` | `chatgpt` | Primary provider |
+| `PROVIDER_CHAIN` | — | Fallback chain (comma-separated) |
+| `POOL_SIZE` | `1` | Number of parallel browsers |
+| `BROWSER_DATA_DIR` | `./browser_data` | Session persistence |
+| `API_TOKEN` | `dummy123` | Bearer auth token |
+| `API_PORT` | `8000` | Server port |
+| `HEADLESS` | `false` | Headless mode |
+| `BROWSER_MODE` | `launch` | `launch`, `cdp`, or `android` |
+| `CACHE_TTL` | `0` | Response cache (seconds, 0=off) |
 
-> See [.env.example](.env.example) for all available settings with descriptions.
+> See [.env.example](.env.example) for all settings.
+
+---
+
+## Architecture
+
+```
+Your app (OpenAI SDK / LangChain / curl / Codex CLI)
+    │
+    ▼
+Panda AI Gateway (FastAPI on port 8000)
+    │
+    ├──► Chromium browser pool (Patchright + stealth patches)
+    │       │
+    │       ├──► chatgpt.com
+    │       ├──► claude.ai
+    │       ├──► aistudio.google.com
+    │       ├──► chat.deepseek.com
+    │       ├──► grok.com
+    │       ├──► chat.mistral.ai
+    │       ├──► chat.qwen.ai
+    │       └──► kimi.moonshot.cn
+    │
+    └──► Dashboard (Next.js on separate port)
+```
+
+Real browser sessions with anti-detection (stealth patches, human-like typing, viewport jitter, persistent cookies). Tool calling via prompt engineering. Full Responses API support for Codex CLI.
+
+> Deep dive: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
+---
+
+## Project Structure
+
+```
+panda-ai/
+├── src/                    # Python source (gateway core)
+│   ├── api/                # FastAPI routes (OpenAI + dashboard)
+│   ├── browser/            # Browser automation (manager, stealth, pool)
+│   ├── chatgpt/            # ChatGPT provider
+│   ├── claude/             # Claude provider
+│   ├── gemini/             # Gemini provider
+│   ├── deepseek/           # DeepSeek provider
+│   ├── grok/               # Grok provider
+│   ├── mistral/            # Mistral provider
+│   ├── qwen/               # Qwen provider
+│   ├── kimi/               # Kimi provider
+│   ├── cli/                # Terminal UI
+│   ├── media/              # Audio transcription + PDF extraction
+│   └── config.py           # Centralized configuration
+├── dashboard/              # Next.js admin dashboard (separate)
+├── scripts/                # Test scripts + first login
+├── docker/                 # Docker support files
+├── docs/                   # Documentation
+├── extension/              # Browser extension
+├── tests/                  # Unit tests
+└── docker-compose.yml
+```
 
 ---
 
 ## Testing
 
-All test scripts auto-detect the active provider from your `.env` file.
-
 ```bash
-source .venv/bin/activate
+# Unit tests (no server needed)
+python tests/test_integration.py
 
-# Start the server (if not already running)
-python -m src.api.server &
-
-# Run individual test suites
-python scripts/test_phase1.py           # Basic send/receive
-python scripts/test_multi_turn.py       # Multi-turn conversations
-python scripts/test_robust.py           # Tables, code blocks, long responses
-python scripts/test_images.py           # Image detection
-python scripts/test_langchain_tools.py  # LangChain + tool calling (needs server running)
+# Integration tests (requires running server)
+python scripts/test_phase1.py
+python scripts/test_multi_turn.py
+python scripts/test_robust.py
+python scripts/test_langchain_tools.py
 ```
-
-Both providers have been tested and verified. See [docs/TEST_REPORT.md](docs/TEST_REPORT.md) for full results with inputs, outputs, and timings.
-
----
-
-## How It Works (short version)
-
-```
-Your app (OpenAI SDK / LangChain / curl)
-    |
-    v
-CatGPT Gateway (FastAPI on port 8000)
-    |
-    v
-Real Chromium browser (automated via Patchright)
-    |
-    v
-claude.ai or chatgpt.com (your logged-in session)
-    |
-    v
-Response extracted from the page, formatted as OpenAI JSON, returned to your app
-```
-
-The gateway runs a real browser session with anti-detection measures (stealth patches, human-like typing, viewport jitter, persistent cookies). It types your message into the chat input, waits for the response to complete, extracts the text, and returns it in the standard OpenAI response format.
-
-Tool calling is implemented via prompt engineering: tool definitions are injected as structured instructions, the model outputs JSON tool calls, and the gateway parses them into the proper OpenAI `tool_calls` format.
-
-> For the full deep dive (browser lifecycle, stealth techniques, response detection, DOM selectors, Docker internals), see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ---
 
 ## Known Limitations
 
-- **No streaming** - Responses are returned all at once after completion. `stream=true` returns a 400 error.
-- **Single concurrency** - One request at a time (browser is single-threaded). Requests are queued.
-- **Response time** - Each request takes 5-30s depending on response length (real browser round-trip).
-- **Session expiry** - Browser sessions expire after days/weeks. Re-login via noVNC or `first_login.py`.
-- **UI changes** - If Claude or ChatGPT update their HTML, selectors may need updating. All selectors are centralized in `selectors.py` for easy fixes.
-- **Tool calling** - Works via prompt engineering, not native API. Reliable for 1-7 tools. Very complex schemas may occasionally need a retry.
+- **No streaming** — Responses returned all at once (browser round-trip)
+- **Single concurrency per browser** — Use `POOL_SIZE` for parallelism
+- **Response time** — 5-30s per request (real browser)
+- **Session expiry** — Re-login via noVNC after days/weeks
+- **Google OAuth blocked** — Use email+password, Microsoft, or Apple login
 
 ---
 
 ## Contributing
 
-Contributions are welcome! Whether it's fixing a broken selector, adding a new provider, improving detection logic, or writing docs, we'd love your help.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to get started.
+Contributions welcome! Fix selectors, add providers, improve detection, write docs.
 
 ---
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
-
----
-
-<p align="center">
-  If you find this project useful, consider giving it a star. It helps others discover it and keeps the project going.<br/>
-  <a href="https://github.com/GautamVhavle/CatGPT-Gateway">
-    <img src="https://img.shields.io/github/stars/GautamVhavle/CatGPT-Gateway?style=social" alt="Star on GitHub" />
-  </a>
-</p>
+MIT License. See [LICENSE](LICENSE).
