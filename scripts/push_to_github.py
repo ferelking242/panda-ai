@@ -59,7 +59,7 @@ def main():
     if not tree or "sha" not in tree:
         print("FAILED: tree"); sys.exit(1)
     cm = api("POST", f"/repos/{R}/git/commits", {
-        "message": "feat: web client + Android build in CI + binary artifacts\n\n- Standalone web client (client/index.html) — dark theme, 8 providers, model selector\n- Client served at /app (no auth required)\n- / redirects to /app\n- CI: 6 jobs — test, linux binary, macos binary, windows binary, android APK, docker\n- All artifacts uploaded (tar.gz, zip, apk)\n- Server rewritten to serve client from file",
+        "message": "fix: CI artifact if-no-files-found warn + Android settings.gradle",
         "tree": tree["sha"], "parents": [base]
     })
     if not cm or "sha" not in cm:
