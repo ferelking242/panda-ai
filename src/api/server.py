@@ -32,6 +32,9 @@ from src.api.routes import router, set_client
 from src.api.openai_routes import openai_router, set_openai_client, set_pool, set_fallback_chain
 from src.cache import init_cache
 from src.api.dashboard_routes import dashboard_router
+from src.api.client_page import dashboard_client_router
+from src.api.agent_routes import agent_router, set_agent_references
+from src.api.ws_routes import ws_router, set_ws_references
 from src.log import setup_logging
 
 log = setup_logging("api_server")
@@ -267,6 +270,8 @@ async def lifespan(app: FastAPI):
 
             set_client(_client, _browser)
             set_openai_client(_client)
+            set_agent_references(_client, _browser)
+            set_ws_references(_client, _pool)
 
             # ── Fallback chain (if configured) ───────────────────────────
             await _setup_fallback_chain(mode="single", primary_provider=Config.PROVIDER)
@@ -319,7 +324,7 @@ class BearerTokenMiddleware:
 
         path = scope.get("path", "").encode() if isinstance(scope.get("path"), str) else scope.get("raw_path", b"")
         path_str = scope.get("path", "")
-        if path_str in {"/docs", "/redoc", "/openapi.json", "/healthz"}:
+        if path_str in self.OPEN_PATHS or path in self.OPEN_PATHS:
             await self.app(scope, receive, send)
             return
 
@@ -383,6 +388,9 @@ app.add_middleware(
 app.include_router(router)
 app.include_router(openai_router)
 app.include_router(dashboard_router)
+app.include_router(dashboard_client_router)
+app.include_router(agent_router)
+app.include_router(ws_router)
 
 
 @app.get("/healthz", include_in_schema=False)

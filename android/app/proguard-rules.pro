@@ -1,4 +1,7 @@
-# Panda AI ProGuard rules
--keep class com.pandaai.gateway.** { *; }
--keep class androidx.compose.** { *; }
--keep class kotlin.** { *; }
+# WebView JavaScript interface
+-keepclassmembers class com.pandaai.gateway.WebBridge {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+# Keep WebView class
+-keep class android.webkit.** { *; }

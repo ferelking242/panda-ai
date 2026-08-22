@@ -1,37 +1,40 @@
+# Android build artifacts
+android/app/build/
+android/.gradle/
+android/build/
+android/local.properties
+android/.idea/
+*.iml
+
 # Python
 __pycache__/
-*.py[cod]
+*.pyc
 *.pyo
 .venv/
 *.egg-info/
+
+# Build outputs
 dist/
 build/
 
-# Browser data (logins, cookies)
-browser_data/
-browser_data_claude/
-
-# Logs & downloads
-logs/
-downloads/
-
-# Env
+# Environment
 .env
+.env.local
 
-# Node
-dashboard/node_modules/
-dashboard/.next/
-
-# Replit internal
-attached_assets/
-.cache/
-.agents/
-.local/
-.replit
+# IDE
+.vscode/
+.idea/
 
 # OS
 .DS_Store
-*.swp
+Thumbs.db
 
-# Cloned subdirectory (artifact of previous agent run)
-repo/
+# Logs
+logs/
+*.log
+
+# Browser data
+browser_data/
+browser_data_*/
+downloads/
+docker-logs/

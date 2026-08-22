@@ -1,100 +1,47 @@
-# ── Stage 1: Build ──────────────────────────────────────────────
 FROM python:3.13-slim AS base
 
-# Prevent interactive prompts during apt-get
-ENV DEBIAN_FRONTEND=noninteractive
-
-# ── System dependencies ─────────────────────────────────────────
-# Xvfb: virtual framebuffer (fake display for headed Chrome)
-# x11vnc: VNC server to capture Xvfb display
-# noVNC + websockify: browser-based VNC client
-# Chrome deps: fonts, media, GL, sandbox support
-# supervisor: process manager
+# System deps for Patchright/Chromium
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Virtual display
-    xvfb \
-    # VNC
-    x11vnc \
-    # noVNC (browser-based VNC)
-    novnc websockify \
-    # Process manager
-    supervisor \
-    # Chrome runtime dependencies
-    libglib2.0-0 \
-    libnss3 \
-    libnspr4 \
-    libdbus-1-3 \
-    libatk1.0-0 \
+    wget \
+    gnupg \
+    fonts-liberation \
+    libasound2 \
     libatk-bridge2.0-0 \
+    libatk1.0-0 \
     libcups2 \
+    libdbus-1-3 \
     libdrm2 \
-    libxkbcommon0 \
+    libgbm1 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libx11-xcb1 \
     libxcomposite1 \
     libxdamage1 \
-    libxfixes3 \
     libxrandr2 \
-    libgbm1 \
-    libpango-1.0-0 \
-    libcairo2 \
-    libasound2 \
-    libatspi2.0-0 \
-    libwayland-client0 \
-    # Fonts (so pages render properly)
-    fonts-liberation \
-    fonts-noto-color-emoji \
-    fonts-dejavu-core \
-    # Utilities
-    curl \
-    procps \
+    xdg-utils \
+    libxshmfence1 \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Application setup ───────────────────────────────────────────
 WORKDIR /app
 
-# Install Python dependencies first (layer caching)
+# Copy requirements first (better Docker layer caching)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && patchright install chromium
 
-# Install patchright's Chromium browser
-RUN patchright install chromium && patchright install-deps chromium
-
-# Copy application code
+# Copy source
 COPY src/ src/
-COPY scripts/ scripts/
-COPY .env.example .env
+COPY panda-ai.spec ./
+COPY .env.example ./
 
-# ── Directory setup ─────────────────────────────────────────────
-# These will be overridden by volume mounts in docker-compose
-RUN mkdir -p /app/browser_data /app/logs /app/downloads/images
+# Create data directories
+RUN mkdir -p browser_data logs downloads/images
 
-# ── Supervisor & entrypoint ─────────────────────────────────────
-COPY docker/supervisord.conf /etc/supervisor/conf.d/catgpt.conf
-COPY docker/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+EXPOSE 8000
 
-# ── Environment ─────────────────────────────────────────────────
-# Virtual display
-ENV DISPLAY=:99
-ENV DISPLAY_WIDTH=1280
-ENV DISPLAY_HEIGHT=720
-ENV DISPLAY_DEPTH=24
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')" || exit 1
 
-# App config (overridable via docker-compose)
-ENV HEADLESS=false
-ENV BROWSER_DATA_DIR=/app/browser_data
-ENV LOG_DIR=/app/logs
-ENV API_HOST=0.0.0.0
-ENV API_PORT=8000
-ENV LOG_LEVEL=DEBUG
-ENV VERBOSE=true
-
-# ── Ports ───────────────────────────────────────────────────────
-# 8000: FastAPI server
-# 6080: noVNC web UI
-EXPOSE 8000 6080
-
-# ── Health check ────────────────────────────────────────────────
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8000/v1/models || exit 1
-
-ENTRYPOINT ["/entrypoint.sh"]
+CMD ["python", "-m", "src.api.server"]

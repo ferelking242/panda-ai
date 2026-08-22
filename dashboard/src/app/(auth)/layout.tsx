@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Authentication - ShadcnStore",
-  description: "Sign in to your account or create a new one",
+  title: "Sign In — Panda AI",
+  description: "Connect to your Panda AI gateway",
 };
 
 export default function AuthLayout({

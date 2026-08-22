@@ -1,8 +1,8 @@
 "use client"
 
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/contexts/auth-context"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -13,115 +13,117 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
-
-const loginFormSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-})
-
-type LoginFormValues = z.infer<typeof loginFormSchema>
+import { Label } from "@/components/ui/label"
+import { Loader2, ArrowRight, Wifi, WifiOff } from "lucide-react"
 
 export function LoginForm1({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginFormSchema),
-    defaultValues: {
-      email: "test@example.com",
-      password: "password",
-    },
-  })
+  const [token, setToken] = useState("")
+  const [gatewayUrl, setGatewayUrl] = useState("")
+  const { signIn, isLoading, error, isAuthenticated } = useAuth()
+  const router = useRouter()
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const ok = await signIn(token.trim(), gatewayUrl.trim() || undefined)
+    if (ok) {
+      router.push("/dashboard")
+    }
+  }
+
+  const handleSkip = async () => {
+    // Try connecting without a token (gateway may have auth disabled)
+    const ok = await signIn("", gatewayUrl.trim() || undefined)
+    if (ok) {
+      router.push("/dashboard")
+    }
+  }
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader className="text-center">
-          <CardTitle className="text-xl">Welcome back</CardTitle>
+          <CardTitle className="text-xl">Welcome to Panda AI</CardTitle>
           <CardDescription>
-            Enter your email below to login to your account
+            Connect to your gateway instance to start using AI providers through the browser.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form action="/">
-              <div className="grid gap-6">
-                <div className="grid gap-4">
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="email"
-                            placeholder="test@example.com"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <div className="flex items-center">
-                          <FormLabel>Password</FormLabel>
-                          <a
-                            href="/auth/forgot-password"
-                            className="ml-auto text-sm underline-offset-4 hover:underline"
-                          >
-                            Forgot your password?
-                          </a>
-                        </div>
-                        <FormControl>
-                          <Input type="password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" className="w-full cursor-pointer">
-                    Login
-                  </Button>
-
-                  <Button variant="outline" className="w-full cursor-pointer" type="button">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                      <path
-                        d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"
-                        fill="currentColor"
-                      />
-                    </svg>
-                    Login with Google
-                  </Button>
-                </div>
-                <div className="text-center text-sm">
-                  Don&apos;t have an account?{" "}
-                  <a href="/auth/sign-up" className="underline underline-offset-4">
-                    Sign up
-                  </a>
-                </div>
+          <form onSubmit={handleSubmit}>
+            <div className="grid gap-5">
+              <div className="grid gap-3">
+                <Label htmlFor="gateway-url">Gateway URL</Label>
+                <Input
+                  id="gateway-url"
+                  type="url"
+                  placeholder="http://localhost:8000"
+                  value={gatewayUrl}
+                  onChange={(e) => setGatewayUrl(e.target.value)}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Leave empty to use the current origin (default)
+                </p>
               </div>
-            </form>
-          </Form>
+
+              <div className="grid gap-3">
+                <Label htmlFor="token">API Token</Label>
+                <Input
+                  id="token"
+                  type="password"
+                  placeholder="pnd_..."
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  autoComplete="off"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Your pnd_ bearer token. Get one from the dashboard config page.
+                </p>
+              </div>
+
+              {error && (
+                <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                  <WifiOff className="size-3.5 shrink-0" />
+                  {error}
+                </div>
+              )}
+
+              {isAuthenticated && !error && (
+                <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-500">
+                  <Wifi className="size-3.5 shrink-0" />
+                  Connected to gateway
+                </div>
+              )}
+
+              <Button type="submit" className="w-full cursor-pointer gap-2" disabled={isLoading}>
+                {isLoading ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <>
+                    Connect <ArrowRight className="size-3.5" />
+                  </>
+                )}
+              </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full cursor-pointer text-muted-foreground"
+                onClick={handleSkip}
+                disabled={isLoading}
+              >
+                Skip — connect without token
+              </Button>
+            </div>
+          </form>
         </CardContent>
       </Card>
-      <div className="text-muted-foreground *:[a]:hover:text-primary text-center text-xs text-balance *:[a]:underline *:[a]:underline-offset-4">
-        By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
-        and <a href="#">Privacy Policy</a>.
-      </div>
+
+      <p className="text-center text-xs text-balance text-muted-foreground">
+        Panda AI connects to AI providers through browser automation.
+        No API keys for ChatGPT/Claude/Gemini required.
+      </p>
     </div>
   )
 }

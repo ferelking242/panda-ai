@@ -1,84 +1,85 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="#0d1117">
+    android:background="#0A0A1A">
 
-    <!-- Header -->
-    <LinearLayout
+    <WebView
+        android:id="@+id/webview"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="12dp"
-        android:background="#161b22"
-        android:gravity="center_vertical">
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <!-- Connection splash overlay -->
+    <LinearLayout
+        android:id="@+id/splash_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="#FF0A0A1A"
+        android:padding="32dp">
 
         <TextView
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="🐼 Panda AI"
-            android:textColor="#00d4ff"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:text="🐼"
+            android:textSize="64sp"
+            android:layout_marginBottom="16dp" />
 
         <TextView
-            android:id="@+id/statusText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="● Offline"
-            android:textColor="#ef4444"
-            android:textSize="12sp" />
-    </LinearLayout>
+            android:text="Panda AI"
+            android:textColor="#FF00D4FF"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
 
-    <!-- Config bar -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="8dp"
-        android:background="#161b22"
-        android:gravity="center_vertical">
-
-        <EditText
-            android:id="@+id/urlInput"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_weight="1"
-            android:hint="Gateway URL (http://10.0.2.2:8000)"
-            android:text="http://10.0.2.2:8000"
-            android:textColor="#e6edf3"
-            android:textColorHint="#8b949e"
-            android:textSize="13sp"
-            android:background="#0d1117"
-            android:paddingHorizontal="10dp"
-            android:singleLine="true"
-            android:inputType="textUri" />
-
-        <Button
-            android:id="@+id/connectBtn"
+        <TextView
+            android:id="@+id/status_text"
             android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:layout_marginStart="8dp"
-            android:text="Connect"
-            android:textColor="#0d1117"
-            android:background="#00d4ff"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-    </LinearLayout>
+            android:layout_height="wrap_content"
+            android:text="Connecting to gateway..."
+            android:textColor="#808080"
+            android:textSize="14sp" />
 
-    <!-- WebView -->
-    <FrameLayout
-        android:id="@+id/container"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:visibility="gone">
-
-        <WebView
-            android:id="@+id/webView"
+        <!-- Gateway URL input -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/url_input_layout"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
-    </FrameLayout>
-</LinearLayout>
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="16dp"
+            android:hint="Gateway URL"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:visibility="gone">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/url_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textUri"
+                android:text="http://localhost:8000"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#606060" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/connect_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Connect"
+            android:textAllCaps="false"
+            android:backgroundTint="#FF00D4FF"
+            android:textColor="#FF000000"
+            android:visibility="gone" />
+
+        <ProgressBar
+            android:id="@+id/progress_bar"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="24dp"
+            android:indeterminateTint="#FF00D4FF" />
+    </LinearLayout>
+</FrameLayout>

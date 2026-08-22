@@ -1,4 +1,18 @@
 // Typed API client for Panda Gateway backend
+// All calls go through the backend API — zero frontend logic here.
+
+const TOKEN_KEY = "panda_api_token"
+const URL_KEY = "panda_api_url"
+
+function getAuthToken(): string {
+  if (typeof window === "undefined") return ""
+  return localStorage.getItem(TOKEN_KEY) || ""
+}
+
+function getBaseUrl(): string {
+  if (typeof window === "undefined") return ""
+  return localStorage.getItem(URL_KEY) || ""
+}
 
 export interface GatewayStats {
   uptime_seconds: number;
@@ -19,24 +33,19 @@ export interface RequestEntry {
 }
 
 export interface GatewayConfig {
-  // Provider
   provider: string;
   headless: boolean;
   slow_mo: number;
-  // Timeouts
   rate_limit_seconds: number;
   response_timeout_ms: number;
   selector_timeout_ms: number;
   poll_interval_ms: number;
-  // Human simulation
   typing_speed_min: number;
   typing_speed_max: number;
   thinking_pause_min: number;
   thinking_pause_max: number;
-  // Logging
   log_level: string;
   verbose: boolean;
-  // API
   api_host: string;
   api_port: number;
   api_token_set: boolean;
@@ -90,7 +99,36 @@ export interface ChatCompletionResponse {
   }>;
 }
 
+export interface ProviderInfo {
+  id: string;
+  name: string;
+  url: string;
+  models: string[];
+  supports_images: boolean;
+  supports_ephemeral: boolean;
+  supports_profile: boolean;
+  is_active: boolean;
+}
+
+export interface ProfileInfo {
+  name: string;
+  email: string;
+  avatar_url: string;
+  plan: string;
+  provider: string;
+  logged_in: boolean;
+}
+
 // ── Fetch helpers ─────────────────────────────────────────────────
+
+function authHeaders(extra?: Record<string, string>): Record<string, string> {
+  const token = getAuthToken()
+  const headers: Record<string, string> = { ...extra }
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`
+  }
+  return headers
+}
 
 async function safeJson<T>(res: Response): Promise<T> {
   const text = await res.text();
@@ -99,7 +137,10 @@ async function safeJson<T>(res: Response): Promise<T> {
 }
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(path, { cache: "no-store" });
+  const res = await fetch(path, {
+    cache: "no-store",
+    headers: authHeaders(),
+  });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   return safeJson<T>(res);
 }
@@ -107,8 +148,18 @@ async function get<T>(path: string): Promise<T> {
 async function post<T>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method: "POST",
-    headers: body ? { "Content-Type": "application/json" } : {},
+    headers: authHeaders(body ? { "Content-Type": "application/json" } : {}),
     body: body ? JSON.stringify(body) : undefined,
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return safeJson<T>(res);
+}
+
+async function del<T>(path: string): Promise<T> {
+  const res = await fetch(path, {
+    method: "DELETE",
+    headers: authHeaders(),
     cache: "no-store",
   });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
@@ -118,7 +169,7 @@ async function post<T>(path: string, body?: unknown): Promise<T> {
 export async function patchConfig(body: Partial<GatewayConfig & { api_token?: string }>): Promise<GatewayConfig> {
   const res = await fetch("/api/dashboard/config", {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(body),
     cache: "no-store",
   });
@@ -127,25 +178,54 @@ export async function patchConfig(body: Partial<GatewayConfig & { api_token?: st
 }
 
 export const gatewayApi = {
+  // Models
   models: () => get<{ data: GatewayModel[] }>("/v1/models"),
+
+  // Chat
   chat: (body: {
     model: string;
     messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
     temperature?: number;
     stream?: boolean;
   }) => post<ChatCompletionResponse>("/v1/chat/completions", body),
+
+  // Stats & status
   stats: () => get<GatewayStats>("/api/dashboard/stats"),
   requests: () => get<RequestEntry[]>("/api/dashboard/requests"),
   config: () => get<GatewayConfig>("/api/dashboard/config"),
   status: () => get<GatewayStatus>("/status"),
+  health: () => get<{ status: string }>("/healthz"),
+
+  // Logs & images
   logs: (lines = 200, level = "all") =>
     get<{ entries: LogEntry[]; error?: string }>(`/api/dashboard/logs?lines=${lines}&level=${level}`),
   images: () => get<{ images: ImageEntry[]; error?: string }>("/api/dashboard/images"),
+
+  // Threads
   threads: () => get<{ threads: ThreadEntry[]; error?: string }>("/api/dashboard/threads"),
+
+  // Session
   resetSession: () => post<{ ok: boolean; message?: string; error?: string }>("/api/dashboard/settings/reset-session"),
+
+  // Cookies
   exportCookies: () => get<{ ok: boolean; cookies: object[]; count: number }>("/api/dashboard/cookies"),
   importCookies: (cookies: object[]) => post<{ ok: boolean; imported: number; logged_in: boolean; message: string; error?: string }>("/api/dashboard/cookies", { cookies }),
+
+  // Tokens
   generateToken: () => post<{ ok: boolean; token: string }>("/api/dashboard/token/generate"),
+  listTokens: () => get<{ tokens: Array<{ token: string; name: string; scope: string[] }> }>("/api/dashboard/tokens"),
+  revokeToken: (token: string) => post<{ ok: boolean }>("/api/dashboard/token/revoke", { token }),
+
+  // Provider & profile
+  providers: () => get<ProviderInfo[]>("/api/agent/providers"),
+  profile: () => get<ProfileInfo>("/api/agent/profile"),
+  allModels: () => get<Record<string, string[]>>("/api/agent/models"),
+
+  // Sub-agents
+  subAgents: () => get<{ agents: unknown[]; total: number; available: number }>("/api/agent/sub-agents"),
+  createSubAgent: (provider: string) => post<{ id: string; provider: string; status: string }>("/api/agent/sub-agents", { provider }),
+  deleteSubAgent: (id: string) => del<{ closed: string }>(`/api/agent/sub-agents/${id}`),
+
   patchConfig,
 };
 

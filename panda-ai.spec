@@ -1,27 +1,29 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-PyInstaller spec — builds a single-binary gateway server.
+PyInstaller spec for Panda AI Gateway.
+Builds a single-file binary that bundles Python + all dependencies.
 
 Usage:
     pip install pyinstaller
-    python -m PyInstaller panda-ai.spec --clean
+    pyinstaller panda-ai.spec --clean
 
-Output:
-    dist/panda-ai        (Linux / macOS)
-    dist/panda-ai.exe    (Windows)
+Output: dist/panda-ai (Linux/macOS) or dist/panda-ai.exe (Windows)
 """
 
-import sys
 import os
+import sys
+
+block_cipher = None
 
 a = Analysis(
-    ['src/api/server.py'],
-    pathex=[os.path.abspath('.')],
+    ['src/cli/app.py'],
+    pathex=[],
     binaries=[],
     datas=[
-        ('.env.example', '.'),
+        ('src/cli/catgpt.tcss', 'src/cli'),
     ],
     hiddenimports=[
+        'fastapi',
         'uvicorn',
         'uvicorn.logging',
         'uvicorn.loops',
@@ -33,62 +35,29 @@ a = Analysis(
         'uvicorn.protocols.websockets.auto',
         'uvicorn.lifespan',
         'uvicorn.lifespan.on',
-        'uvicorn.lifespan.on.off',
-        'fastapi',
-        'fastapi.middleware.cors',
         'pydantic',
-        'pydantic.fields',
-        'httpx',
-        'httpx._transports',
-        'httpx._transports.default',
         'starlette',
-        'starlette.responses',
+        'starlette.middleware',
+        'starlette.middleware.cors',
         'starlette.requests',
+        'starlette.responses',
         'starlette.types',
-        'rich',
-        'rich.console',
-        'rich.logging',
         'textual',
+        'textual.app',
+        'textual.binding',
+        'textual.containers',
+        'textual.reactive',
+        'textual.screen',
+        'textual.widget',
+        'textual.widgets',
         'typer',
+        'rich',
+        'rich.markdown',
+        'httpx',
         'dotenv',
-        'dotenv.main',
-        'langchain',
-        'langchain_openai',
+        'patchright',
+        'playwright_stealth',
         'openai',
-        'pypdf',
-        'secrets',
-        'src',
-        'src.config',
-        'src.log',
-        'src.cache',
-        'src.tokens',
-        'src.api',
-        'src.api.server',
-        'src.api.routes',
-        'src.api.openai_routes',
-        'src.api.openai_schemas',
-        'src.api.schemas',
-        'src.api.dashboard_routes',
-        'src.browser',
-        'src.browser.manager',
-        'src.browser.stealth',
-        'src.browser.human',
-        'src.browser.pool',
-        'src.chatgpt',
-        'src.chatgpt.client',
-        'src.chatgpt.detector',
-        'src.chatgpt.models',
-        'src.claude',
-        'src.claude.client',
-        'src.claude.detector',
-        'src.claude.selectors',
-        'src.gemini',
-        'src.gemini.client',
-        'src.gemini.detector',
-        'src.gemini.selectors',
-        'src.selectors',
-        'src.dom_observer',
-        'src.network_recorder',
     ],
     hookspath=[],
     hooksconfig={},
@@ -100,19 +69,20 @@ a = Analysis(
         'pandas',
         'scipy',
         'PIL',
-        'pytest',
-        'unittest',
     ],
+    win_no_prefer_redirects=False,
+    win_private_assemblies=False,
+    cipher=block_cipher,
     noarchive=False,
-    optimize=1,
 )
 
-pyz = PYZ(a.pure)
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 exe = EXE(
     pyz,
     a.scripts,
     a.binaries,
+    a.zipfiles,
     a.datas,
     [],
     name='panda-ai',
@@ -128,4 +98,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=None,
 )

@@ -3,8 +3,12 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
     branches: [main]
+
+permissions:
+  contents: write
 
 jobs:
   test:
@@ -13,14 +17,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: '3.13'
       - run: pip install -r requirements.txt
       - name: Compile check
         run: |
-          python -m py_compile src/config.py
-          python -m py_compile src/api/server.py
-          python -m py_compile src/api/openai_routes.py
-          python -m py_compile src/tokens.py
+          for f in $(find src -name '*.py' -not -path '*/_generated/*'); do
+            python -m py_compile "$f" || exit 1
+          done
+          echo "All Python files compile OK"
       - name: Unit tests
         run: python tests/test_integration.py
 
@@ -31,24 +35,23 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
-      - run: pip install -r requirements.txt pyinstaller
+          python-version: '3.13'
+      - run: pip install -r requirements.txt pyinstaller upx-ucl 2>/dev/null || pip install -r requirements.txt pyinstaller
       - run: python -m PyInstaller panda-ai.spec --clean
-      - name: Package
+      - name: Compress binary
         run: |
-          cd dist
-          # PyInstaller 6.x creates a folder with _internal
-          if [ -d panda-ai ]; then
-            tar czf panda-ai-linux-x64.tar.gz panda-ai/
-          elif [ -f panda-ai ]; then
-            tar czf panda-ai-linux-x64.tar.gz panda-ai
+          if [ -f dist/panda-ai ]; then
+            upx --best --lzma dist/panda-ai 2>/dev/null || true
+            tar czf dist/panda-ai-linux-x64.tar.gz -C dist panda-ai
+          elif [ -d dist/panda-ai ]; then
+            tar czf dist/panda-ai-linux-x64.tar.gz -C dist panda-ai
           fi
-          ls -la
+          ls -lh dist/panda-ai-linux-x64.tar.gz
       - uses: actions/upload-artifact@v4
-        continue-on-error: true
         with:
           name: panda-ai-linux-x64
           path: dist/panda-ai-linux-x64.tar.gz
+          compression-level: 9
 
   build-macos:
     runs-on: macos-latest
@@ -57,7 +60,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: '3.13'
       - run: pip install -r requirements.txt pyinstaller
       - run: python -m PyInstaller panda-ai.spec --clean
       - name: Package
@@ -68,12 +71,12 @@ jobs:
           elif [ -f panda-ai ]; then
             tar czf panda-ai-macos-x64.tar.gz panda-ai
           fi
-          ls -la
+          ls -lh panda-ai-macos-x64.tar.gz
       - uses: actions/upload-artifact@v4
-        continue-on-error: true
         with:
           name: panda-ai-macos-x64
           path: dist/panda-ai-macos-x64.tar.gz
+          compression-level: 9
 
   build-windows:
     runs-on: windows-latest
@@ -82,46 +85,63 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: '3.13'
       - run: pip install -r requirements.txt pyinstaller
       - run: python -m PyInstaller panda-ai.spec --clean
       - name: Package
+        shell: pwsh
         run: |
-          cd dist
+          Set-Location dist
           if (Test-Path panda-ai) {
-            Compress-Archive -Path panda-ai -DestinationPath panda-ai-windows-x64.zip
+            Compress-Archive -Path panda-ai -DestinationPath panda-ai-windows-x64.zip -Force
           } elseif (Test-Path panda-ai.exe) {
-            Compress-Archive -Path panda-ai.exe -DestinationPath panda-ai-windows-x64.zip
+            Compress-Archive -Path panda-ai.exe -DestinationPath panda-ai-windows-x64.zip -Force
+          } else {
+            Write-Error 'No binary found in dist/'
+            exit 1
           }
-        continue-on-error: true
+          Get-Item panda-ai-windows-x64.zip | Select-Object Name, @{N='SizeMB';E={[math]::Round($_.Length/1MB,1)}}
       - uses: actions/upload-artifact@v4
-        continue-on-error: true
         with:
           name: panda-ai-windows-x64
           path: dist/panda-ai-windows-x64.zip
+          compression-level: 9
 
   build-android:
     runs-on: ubuntu-latest
     needs: test
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
-      - uses: android-actions/setup-android@v3
-      - name: Generate Gradle wrapper
-        working-directory: android
-        run: gradle wrapper --gradle-version 8.5
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Accept licenses
+        run: yes | sdkmanager --licenses > /dev/null 2>&1 || true
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle*') }}
+          restore-keys: gradle-${{ runner.os }}-
       - name: Build APK
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tail -30
+      - name: Verify APK exists
+        run: |
+          ls -lh android/app/build/outputs/apk/debug/app-debug.apk || (echo 'APK not found' && exit 1)
       - uses: actions/upload-artifact@v4
-        continue-on-error: true
         with:
           name: panda-ai-android
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          compression-level: 9
 
   docker:
     runs-on: ubuntu-latest
@@ -133,7 +153,29 @@ jobs:
         run: |
           docker run -d --name test -p 8000:8000 panda-ai:latest
           for i in $(seq 1 30); do
-            curl -sf http://localhost:8000/healthz > /dev/null 2>&1 && echo "OK" && docker stop test && exit 0
+            curl -sf http://localhost:8000/healthz > /dev/null 2>&1 && echo 'OK' && docker stop test && exit 0
             sleep 2
           done
           docker logs test; docker stop test; exit 1
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-linux, build-macos, build-windows, build-android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: List artifacts
+        run: find artifacts -type f -ls
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/panda-ai-linux-x64/panda-ai-linux-x64.tar.gz
+            artifacts/panda-ai-macos-x64/panda-ai-macos-x64.tar.gz
+            artifacts/panda-ai-windows-x64/panda-ai-windows-x64.zip
+            artifacts/panda-ai-android/app-debug.apk
