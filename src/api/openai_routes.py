@@ -76,6 +76,23 @@ def _get_lock() -> asyncio.Lock:
     return _lock
 
 
+# Per-provider locks — with Android multi-session each provider lives in its
+# own WebView tab, so DIFFERENT providers can serve requests in parallel.
+# Requests targeting the SAME provider stay serialized (a chat UI can only
+# process one message at a time).
+_handle_locks: dict[int, asyncio.Lock] = {}
+
+
+def _get_handle_lock(handle: object) -> asyncio.Lock:
+    """Lock dedicated to one provider handle (client or pool instance)."""
+    key = id(handle)
+    lock = _handle_locks.get(key)
+    if lock is None:
+        lock = asyncio.Lock()
+        _handle_locks[key] = lock
+    return lock
+
+
 def set_pool(pool) -> None:
     """Called by server.py to inject the browser pool."""
     global _pool
@@ -1093,7 +1110,7 @@ async def create_chat_completion(
                 async with provider_handle.acquire() as pooled_client:
                     resp = await _do_chat_completion(request, pooled_client, provider_name)
             elif provider_handle is not None:
-                async with _get_lock():
+                async with _get_handle_lock(provider_handle):
                     resp = await _do_chat_completion(request, provider_handle, provider_name)
             else:
                 raise RuntimeError(f"Provider {provider_name} has no pool or client")
