@@ -68,6 +68,21 @@ def _make_client(provider: str, page):
         return ChatGPTClient(page)
 
 
+def _provider_url_for(provider: str) -> str:
+    """URL cible pour n'importe quel fournisseur (pas seulement le primaire)."""
+    urls = {
+        "chatgpt": Config.CHATGPT_URL,
+        "claude": Config.CLAUDE_URL,
+        "gemini": Config.GEMINI_URL,
+        "deepseek": Config.DEEPSEEK_URL,
+        "grok": Config.GROK_URL,
+        "mistral": Config.MISTRAL_URL,
+        "qwen": Config.QWEN_URL,
+        "kimi": Config.KIMI_URL,
+    }
+    return urls.get(provider.lower(), Config.CHATGPT_URL)
+
+
 # Global instances — needed for lifespan
 _browser: BrowserManager | None = None
 _client: ChatGPTClient | ClaudeClient | None = None
@@ -144,29 +159,81 @@ async def lifespan(app: FastAPI):
     log.info(f"Starting gateway — mode={mode}, provider={provider_name}")
 
     if mode == "android":
-        # ── Mode Android : bridge vers la WebView Flutter ─────────────────
+        # ── Mode Android : bridge vers le navigateur intégré de panda-ide ─
+        #
+        # Protocole v2 multi-session : chaque fournisseur possède sa propre
+        # session (= un onglet isolé dans la pile flutter_inappwebview déjà
+        # présente dans l'IDE — zéro doublon de moteur de rendu).
+        # ChatGPT + Claude + Gemini peuvent donc tourner SIMULTANÉMENT et
+        # basculer instantanément (onglets gardés vivants côté IDE).
         log.info(f"Android mode — WebView bridge on port {Config.WEBVIEW_BRIDGE_PORT}")
-        page = AndroidPage(bridge_port=Config.WEBVIEW_BRIDGE_PORT)
 
-        # Naviguer vers le provider dans la WebView
-        log.info(f"Navigating WebView to {target_url}")
-        try:
-            await page.goto(target_url)
-        except Exception as e:
-            log.warning(f"Initial navigation failed (WebView may not be ready): {e}")
-            log.info("Gateway starting anyway — connect via the panda-ide Gateway panel")
+        # Fournisseurs à lancer : primaire + chaîne de fallback
+        providers = [Config.PROVIDER]
+        chain_str = Config.PROVIDER_CHAIN.strip()
+        if chain_str:
+            for p in (x.strip().lower() for x in chain_str.split(",")):
+                if p and p not in providers:
+                    providers.append(p)
 
-        _client = _make_client(Config.PROVIDER, page)  # type: ignore[arg-type]
+        android_pages: list[AndroidPage] = []
+
+        async def _boot_provider(provider_name_key: str) -> object:
+            """Crée la session WebView du fournisseur + son client."""
+            url = _provider_url_for(provider_name_key)
+            page = AndroidPage(
+                bridge_port=Config.WEBVIEW_BRIDGE_PORT,
+                session_id=provider_name_key,  # 1 session = 1 fournisseur
+            )
+            try:
+                await page.ensure_session(url)
+                log.info(f"[android] session '{provider_name_key}' → {url}")
+            except Exception as e:
+                log.warning(
+                    f"[android] session '{provider_name_key}' init failed "
+                    f"(panda-ide pas encore prêt ?): {e}"
+                )
+                log.info("Gateway started anyway — sessions will attach when the IDE connects")
+            android_pages.append(page)
+            return _make_client(provider_name_key, page)
+
+        primary_client = await _boot_provider(Config.PROVIDER)
+
+        # Chaîne de fallback en sessions parallèles (clients simples, pas des pools)
+        chain_entries: list[tuple[str, object]] = []
+        for fb_provider in providers[1:]:
+            try:
+                fb_client = await _boot_provider(fb_provider)
+                chain_entries.append((fb_provider, fb_client))
+                log.info(f"Fallback provider ready (session): {fb_provider}")
+            except Exception as e:
+                log.warning(f"Fallback provider {fb_provider} failed to start: {e} — skipped")
+
+        if chain_entries:
+            set_fallback_chain(chain_entries)
+            log.info(
+                f"Android multi-session actif — fournisseurs simultanés : "
+                f"{[Config.PROVIDER] + [p for p, _ in chain_entries]}"
+            )
+
+        _client = primary_client  # type: ignore[assignment]
         _browser = None  # Pas de BrowserManager en mode android
 
         set_client(_client, None)  # type: ignore[arg-type]
         set_openai_client(_client)
-        log.info(f"API server ready — Android/WebView mode, provider={provider_name}")
+        log.info(
+            f"API server ready — Android/WebView multi-session, "
+            f"provider={provider_name}, sessions={providers}"
+        )
 
         yield
 
-        await page.close()
-        log.info("AndroidPage closed")
+        for page in android_pages:
+            try:
+                await page.close()
+            except Exception:
+                pass
+        log.info("AndroidPage sessions closed")
 
     elif mode == "cdp":
         # ── Mode CDP : connexion à un Chrome externe ──────────────────────
