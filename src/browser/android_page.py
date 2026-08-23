@@ -5,13 +5,19 @@ Au lieu de contrôler Chromium via Playwright, AndroidPage envoie des
 commandes JavaScript à la WebView Flutter de panda-ide via un bridge HTTP
 local (port configurable, défaut 9221).
 
-Architecture :
-  Python (gateway)  →  HTTP POST :9221  →  Flutter WebViewBridge
-                                         →  evaluateJavascript(InAppWebView)
-                                         ←  retourne le résultat JSON
+Architecture (protocole v2 — multi-session) :
+  Python (gateway)  →  HTTP POST :9221 {action, session, ...}
+                     →  GatewayWebViewBridge (panda-ide)
+                     →  onglet dédié dans le navigateur existant de l'IDE
+                        (flutter_inappwebview — zéro doublon de moteur)
+                     ←  retourne le résultat JSON
+
+Chaque AndroidPage est liée à UNE session (= un onglet isolé du navigateur
+de l'IDE, cookies séparés par profil). Plusieurs AndroidPage peuvent donc
+vivre en parallèle : ChatGPT + Claude + Gemini simultanément.
 
 Compatibilité : implémente le sous-ensemble de l'API Playwright Page
-utilisé par ChatGPTClient et ClaudeClient.
+utilisé par les clients fournisseurs (ChatGPTClient, ClaudeClient, …).
 """
 
 from __future__ import annotations
@@ -37,16 +43,30 @@ class AndroidPage:
     """
     Pseudo-page Playwright pour Android via bridge HTTP → Flutter WebView.
 
+    Args:
+        bridge_port: port HTTP du bridge Flutter (défaut Config.WEBVIEW_BRIDGE_PORT).
+        session_id: identifiant de session. Chaque session = un onglet isolé
+            (profil dédié) dans le navigateur intégré de panda-ide.
+            Défaut : le fournisseur actif (ex "chatgpt", "claude").
+
     Usage :
-        page = AndroidPage()
-        await page.goto("https://chatgpt.com")
+        page = AndroidPage(session_id="chatgpt")
+        await page.ensure_session("https://chatgpt.com")
         result = await page.evaluate("document.title")
     """
 
-    def __init__(self, bridge_port: int | None = None) -> None:
+    def __init__(
+        self,
+        bridge_port: int | None = None,
+        session_id: str | None = None,
+        close_session_on_exit: bool = True,
+    ) -> None:
         self._port = bridge_port or Config.WEBVIEW_BRIDGE_PORT
         self._base = f"http://127.0.0.1:{self._port}"
         self._client: httpx.AsyncClient | None = None
+        # Session par défaut = nom du fournisseur → 1 onglet par fournisseur
+        self.session_id = session_id or Config.PROVIDER
+        self._close_session_on_exit = close_session_on_exit
         self.url: str = ""
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -57,8 +77,47 @@ class AndroidPage:
         return self._client
 
     async def close(self) -> None:
+        """Ferme le client HTTP et, demandé, la session côté IDE."""
+        if self._close_session_on_exit:
+            try:
+                await self.close_session()
+            except Exception as e:
+                log.debug(f"[AndroidPage] close_session ignored: {e}")
         if self._client and not self._client.is_closed:
             await self._client.aclose()
+
+    # ── Sessions (protocole v2) ──────────────────────────────────────────────
+
+    async def ensure_session(self, url: str | None = None) -> Any:
+        """
+        Crée la session côté IDE si absente (idempotent) et navigue vers
+        `url` si fourni. Retourne l'état de la session créé par le bridge.
+        """
+        payload: dict[str, Any] = {"session": self.session_id}
+        if url:
+            payload["url"] = url
+            self.url = url
+        log.info(f"[AndroidPage] ensure_session({self.session_id}) url={url}")
+        return await self._bridge("session.create", payload)
+
+    async def close_session(self) -> Any:
+        """Ferme la session et libère l'onglet côté IDE."""
+        return await self._bridge("session.close", {"session": self.session_id})
+
+    @staticmethod
+    async def list_sessions(bridge_port: int | None = None) -> list[dict[str, Any]]:
+        """Liste les sessions actives côté IDE (helper statique)."""
+        probe = AndroidPage(
+            bridge_port=bridge_port,
+            session_id="__probe__",
+            close_session_on_exit=False,
+        )
+        try:
+            result = await probe._bridge("sessions.list")
+            return result or []
+        finally:
+            if probe._client and not probe._client.is_closed:
+                await probe._client.aclose()
 
     # ── Bridge helpers ────────────────────────────────────────────────────────
 
@@ -66,6 +125,9 @@ class AndroidPage:
         """Envoie une commande au bridge Flutter et retourne le résultat."""
         client = await self._get_client()
         body = {"action": action, **(payload or {})}
+        # Protocole v2 : toute commande ciblée porte sa session.
+        if action not in ("ping", "sessions.list") and "session" not in body:
+            body["session"] = self.session_id
         try:
             resp = await client.post(f"{self._base}/cmd", json=body)
             resp.raise_for_status()
@@ -84,8 +146,8 @@ class AndroidPage:
     # ── Navigation ────────────────────────────────────────────────────────────
 
     async def goto(self, url: str, **kwargs) -> None:
-        """Navigue vers l'URL dans la WebView Flutter."""
-        log.info(f"[AndroidPage] navigate → {url}")
+        """Navigue vers l'URL dans la session (onglet dédié) de l'IDE."""
+        log.info(f"[AndroidPage:{self.session_id}] navigate → {url}")
         self.url = url
         await self._bridge("navigate", {"url": url})
         # Attendre que la page se charge
@@ -98,7 +160,7 @@ class AndroidPage:
     # ── JavaScript evaluation ─────────────────────────────────────────────────
 
     async def evaluate(self, expression: str, *args) -> Any:
-        """Évalue une expression JS dans la WebView et retourne le résultat."""
+        """Évalue une expression JS dans la session et retourne le résultat."""
         script = expression
         if args:
             # Injecter les arguments comme `arguments` n'est pas supporté
@@ -145,7 +207,7 @@ class AndroidPage:
             except Exception:
                 pass
             await asyncio.sleep(poll_ms / 1000)
-        log.warning(f"[AndroidPage] wait_for_selector timeout: {selector}")
+        log.warning(f"[AndroidPage:{self.session_id}] wait_for_selector timeout: {selector}")
         return None
 
     async def fill(self, selector: str, value: str, **kwargs) -> None:
@@ -251,7 +313,7 @@ class AndroidPage:
         return AndroidContext()
 
     def __repr__(self) -> str:
-        return f"<AndroidPage url={self.url!r} bridge=:{self._port}>"
+        return f"<AndroidPage session={self.session_id!r} url={self.url!r} bridge=:{self._port}>"
 
 
 class AndroidElement:
