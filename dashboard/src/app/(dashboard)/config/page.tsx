@@ -41,6 +41,39 @@ function Row({ label, description, children }: { label: string; description?: st
   )
 }
 
+
+function EndpointUrlCard() {
+  const [copied, setCopied] = useState(false)
+  const endpointUrl = typeof window !== "undefined"
+    ? window.location.protocol + "//" + window.location.host + "/v1"
+    : "/v1"
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(endpointUrl)
+    setCopied(true)
+    toast.success("URL copiée !")
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-sm">Endpoint URL</Label>
+      <p className="text-xs text-muted-foreground">
+        URL à utiliser comme endpoint OpenAI-compatible (Panda IDE, OpenAI SDK, etc.)
+      </p>
+      <div className="flex items-center gap-2">
+        <div className="flex-1 rounded border bg-muted/50 px-3 py-2.5 font-mono text-sm truncate">
+          {endpointUrl}
+        </div>
+        <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={handleCopy}>
+          {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
+          {copied ? "Copié !" : "Copier"}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export default function ConfigPage() {
   const [config, setConfig] = useState<GatewayConfig | null>(null)
   const [providers, setProviders] = useState<ProviderInfo[]>([])
@@ -377,49 +410,58 @@ export default function ConfigPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
-              <Row label="Bearer Token" description="Protect the API with a pnd_ token">
-                <div className="flex flex-col gap-2 items-end">
-                  <div className="flex items-center gap-2">
-                    {config.api_token_set && (
-                      <Badge variant="outline" className="text-xs text-green-500 border-green-500/30">active</Badge>
-                    )}
-                    <div className="relative">
-                      <Input
-                        type={showToken ? "text" : "password"}
-                        className="w-48 pr-8 font-mono text-xs"
-                        placeholder={config.api_token_set ? "••••••••" : "pnd_..."}
-                        value={apiToken}
-                        onChange={(e) => { setApiToken(e.target.value); setGeneratedToken("") }}
-                        autoComplete="new-password"
-                      />
-                      <button
-                        type="button"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        onClick={() => setShowToken((v) => !v)}
-                      >
-                        {showToken ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                      </button>
-                    </div>
-                    <Button variant="outline" size="icon" className="size-9 shrink-0" onClick={copyToken} disabled={!apiToken && !generatedToken}>
-                      {copiedToken ? <Check className="size-4 text-green-500" /> : <Copy className="size-4" />}
-                    </Button>
+
+              {/* Endpoint URL for Panda IDE / OpenAI clients */}
+              <EndpointUrlCard />
+
+              {/* Bearer Token */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm">Bearer Token</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Clé API pour accéder au gateway</p>
                   </div>
-                  <Button variant="secondary" size="sm" className="gap-2 w-full" onClick={generateToken} disabled={generating}>
-                    <RefreshCw className={`size-3.5 ${generating ? "animate-spin" : ""}`} />
-                    {generating ? "Generating…" : "Generate new token"}
-                  </Button>
-                  {generatedToken && (
-                    <div className="w-full rounded border border-green-500/30 bg-green-500/5 px-3 py-2 text-xs font-mono text-green-400 break-all">
-                      {generatedToken}
-                    </div>
+                  {config.api_token_set && (
+                    <Badge variant="outline" className="text-xs text-green-500 border-green-500/30">actif</Badge>
                   )}
                 </div>
-              </Row>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      type={showToken ? "text" : "password"}
+                      className="w-full pr-10 font-mono text-sm"
+                      placeholder={config.api_token_set ? "••••••••••••••••" : "pnd_..."}
+                      value={apiToken}
+                      onChange={(e) => { setApiToken(e.target.value); setGeneratedToken("") }}
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowToken((v) => !v)}
+                    >
+                      {showToken ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
+                  <Button variant="outline" size="icon" className="size-10 shrink-0" onClick={copyToken} disabled={!apiToken && !generatedToken}>
+                    {copiedToken ? <Check className="size-4 text-green-500" /> : <Copy className="size-4" />}
+                  </Button>
+                </div>
+                <Button variant="secondary" size="sm" className="gap-2 w-full" onClick={generateToken} disabled={generating}>
+                  <RefreshCw className={`size-3.5 ${generating ? "animate-spin" : ""}`} />
+                  {generating ? "Generating…" : "Générer un nouveau token"}
+                </Button>
+                {generatedToken && (
+                  <div className="rounded border border-green-500/30 bg-green-500/5 px-3 py-2 text-xs font-mono text-green-400 break-all">
+                    {generatedToken}
+                  </div>
+                )}
+              </div>
 
               {/* Token list */}
               {tokens.length > 0 && (
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Active tokens</Label>
+                  <Label className="text-xs">Tokens actifs</Label>
                   {tokens.map((t) => (
                     <div key={t.token} className="flex items-center justify-between rounded border bg-muted/30 px-3 py-1.5 font-mono text-[11px]">
                       <span className="truncate">{t.token}</span>
@@ -432,12 +474,17 @@ export default function ConfigPage() {
                 </div>
               )}
 
-              <Row label="API Host" description="Address the gateway binds to">
-                <Input className="w-36 font-mono text-sm" value={config.api_host} readOnly disabled />
-              </Row>
-              <Row label="API Port" description="Port the gateway listens on">
-                <Input className="w-24 font-mono text-sm text-right" value={config.api_port} readOnly disabled />
-              </Row>
+              {/* Host + Port */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-sm">API Host</Label>
+                  <Input className="font-mono text-sm" value={config.api_host} readOnly disabled />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm">API Port</Label>
+                  <Input className="font-mono text-sm text-right" value={config.api_port} readOnly disabled />
+                </div>
+              </div>
             </CardContent>
           </Card>
 
