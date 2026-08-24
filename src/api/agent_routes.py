@@ -250,11 +250,107 @@ async def list_providers() -> list[ProviderInfo]:
 
 @agent_router.get("/models")
 async def list_all_models() -> dict:
-    """List models for ALL providers (not just the active one)."""
+    """List models for ALL providers (hardcoded defaults + live if available)."""
     return {
         p["id"]: p["models"]
         for p in ALL_PROVIDERS
     }
+
+
+@agent_router.get("/models/active")
+async def get_active_provider_models() -> dict:
+    """Fetch the real model list from the currently active provider."""
+    start = time.time()
+    provider = Config.PROVIDER
+    try:
+        if _client is None or _client.page is None:
+            raise HTTPException(status_code=503, detail="Client not ready")
+
+        page = _client.page
+        models = []
+
+        if provider == "chatgpt":
+            # ChatGPT models endpoint (GET /backend-api/models)
+            try:
+                resp = await page.evaluate("""
+                    async () => {
+                        const r = await fetch('/backend-api/models?history_and_training_messages=false', {
+                            credentials: 'include'
+                        });
+                        if (!r.ok) return {error: r.status};
+                        return await r.json();
+                    }
+                """)
+                if isinstance(resp, dict) and "data" in resp:
+                    models = [m.get("slug", m.get("id", "")) for m in resp["data"] if m.get("slug") or m.get("id")]
+                elif isinstance(resp, dict) and "error" not in resp:
+                    # Try parsing as list
+                    if isinstance(resp, list):
+                        models = [m.get("slug", m.get("id", "")) for m in resp if m.get("slug") or m.get("id")]
+            except Exception as e:
+                log.warning(f"Failed to fetch ChatGPT models: {e}")
+
+        elif provider == "claude":
+            # Claude models are accessed via the model selector in the UI
+            try:
+                resp = await page.evaluate("""
+                    async () => {
+                        const r = await fetch('https://claude.ai/api/models', {
+                            credentials: 'include'
+                        });
+                        if (!r.ok) return {error: r.status};
+                        return await r.json();
+                    }
+                """)
+                if isinstance(resp, dict) and "models" in resp:
+                    models = [m.get("id", "") for m in resp["models"] if m.get("id")]
+                elif isinstance(resp, list):
+                    models = [m.get("id", "") for m in resp if m.get("id")]
+            except Exception as e:
+                log.warning(f"Failed to fetch Claude models: {e}")
+
+        elif provider == "gemini":
+            # Gemini models via the chat page model selector
+            try:
+                resp = await page.evaluate("""
+                    async () => {
+                        const r = await fetch('/api/models', { credentials: 'include' });
+                        if (!r.ok) return {error: r.status};
+                        return await r.json();
+                    }
+                """)
+                if isinstance(resp, dict) and "models" in resp:
+                    models = [m.get("id", "") for m in resp["models"] if m.get("id")]
+            except Exception as e:
+                log.warning(f"Failed to fetch Gemini models: {e}")
+
+        # Fallback: use hardcoded if live fetch returned nothing
+        if not models:
+            provider_data = next((p for p in ALL_PROVIDERS if p["id"] == provider), None)
+            if provider_data:
+                models = provider_data["models"]
+
+        elapsed = (time.time() - start) * 1000
+        record_request("/api/agent/models/active", "ok", elapsed)
+
+        return {
+            "provider": provider,
+            "models": models,
+            "live": len(models) > 0 and provider in ("chatgpt", "claude", "gemini"),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        elapsed = (time.time() - start) * 1000
+        record_request("/api/agent/models/active", "error", elapsed, error=str(e))
+        # Fallback to hardcoded
+        provider_data = next((p for p in ALL_PROVIDERS if p["id"] == Config.PROVIDER), None)
+        return {
+            "provider": Config.PROVIDER,
+            "models": provider_data["models"] if provider_data else [],
+            "live": False,
+        }
 
 
 @agent_router.post("/ephemeral")
