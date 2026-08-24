@@ -430,7 +430,11 @@ class BearerTokenMiddleware:
     Skips auth for /docs, /openapi.json, and health-check paths.
     """
 
-    OPEN_PATHS = {b"/docs", b"/redoc", b"/openapi.json", b"/healthz", b"/client", b"/client.html"}
+    OPEN_PATHS = {
+        b"/docs", b"/redoc", b"/openapi.json", b"/healthz", b"/client", b"/client.html",
+        # Dashboard read-only endpoints (no auth needed for initial load)
+        b"/api/dashboard/config", b"/api/dashboard/stats",
+    }
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
