@@ -334,58 +334,78 @@ async def lifespan(app: FastAPI):
             log.info("Launch mode — single browser (provider={})".format(provider_name))
             _browser = BrowserManager()
             _pool = None
-            page = await _browser.start()
 
             log.info(f"Provider: {provider_name} ({target_url})")
 
-            # Navigate with retries (DNS can be slow in Docker)
-            max_retries = 5
-            for attempt in range(1, max_retries + 1):
-                try:
-                    log.info(f"Navigation attempt {attempt}/{max_retries} to {target_url}")
-                    await _browser.navigate(target_url)
-                    break
-                except Exception as e:
-                    log.warning(f"Navigation attempt {attempt} failed: {e}")
-                    if attempt == max_retries:
-                        log.error("All navigation attempts failed")
-                        raise
-                    wait_time = attempt * 5  # 5s, 10s, 15s, 20s
-                    log.info(f"Retrying in {wait_time}s...")
-                    await asyncio.sleep(wait_time)
+            try:
+                page = await _browser.start()
 
-            # Apply stealth patches AFTER the first navigation.
-            await _browser.apply_stealth_patches()
+                # Navigate with retries (DNS can be slow in Docker)
+                max_retries = 5
+                for attempt in range(1, max_retries + 1):
+                    try:
+                        log.info(f"Navigation attempt {attempt}/{max_retries} to {target_url}")
+                        await _browser.navigate(target_url)
+                        break
+                    except Exception as e:
+                        log.warning(f"Navigation attempt {attempt} failed: {e}")
+                        if attempt == max_retries:
+                            log.error("All navigation attempts failed")
+                            raise
+                        wait_time = attempt * 5  # 5s, 10s, 15s, 20s
+                        log.info(f"Retrying in {wait_time}s...")
+                        await asyncio.sleep(wait_time)
 
-            await asyncio.sleep(3)
+                # Apply stealth patches AFTER the first navigation.
+                await _browser.apply_stealth_patches()
 
-            logged_in = await _browser.is_logged_in()
-            if not logged_in:
-                log.warning(
-                    f"Not logged in to {provider_name}. "
-                    "Open the browser (VNC or headless=false) and sign in manually. "
-                    "The API server is starting anyway — requests will fail until you're logged in."
+                await asyncio.sleep(3)
+
+                logged_in = await _browser.is_logged_in()
+                if not logged_in:
+                    log.warning(
+                        f"Not logged in to {provider_name}. "
+                        "Import cookies via the dashboard or sign in manually. "
+                        "The API server is starting anyway — requests will fail until you're logged in."
+                    )
+                else:
+                    log.info(f"Already logged in to {provider_name}")
+
+                _client = _make_client(Config.PROVIDER, page)
+
+                set_client(_client, _browser)
+                set_openai_client(_client)
+                set_agent_references(_client, _browser)
+                set_ws_references(_client, None)  # no pool in single mode
+            except Exception as e:
+                # Dégradation gracieuse : l'API démarre quand même (healthz OK,
+                # dashboard OK) et les endpoints chat répondent 503 proprement.
+                # Essentiel en CI/Docker où Chromium peut manquer de display/shm.
+                log.error(
+                    f"Browser startup failed — serving API in DEGRADED mode "
+                    f"(chat endpoints return 503 until restart): {e}"
                 )
-            else:
-                log.info(f"Already logged in to {provider_name}")
-
-            _client = _make_client(Config.PROVIDER, page)
-
-            set_client(_client, _browser)
-            set_openai_client(_client)
-            set_agent_references(_client, _browser)
-            set_ws_references(_client, None)  # no pool in single mode
+                try:
+                    await _browser.close()
+                except Exception:
+                    pass
+                _browser = None
+                _client = None
 
             # ── Fallback chain (if configured) ───────────────────────────
             await _setup_fallback_chain(mode="single", primary_provider=Config.PROVIDER)
 
-            log.info(f"API server ready — browser launched, logged in to {provider_name}")
+            if _client is not None:
+                log.info(f"API server ready — browser launched, provider={provider_name}")
+            else:
+                log.warning("API server ready — DEGRADED mode (no browser available)")
 
             yield  # Server is running
 
-            log.info("Shutting down — closing browser...")
-            await _browser.close()
-            log.info("Browser closed")
+            if _browser is not None:
+                log.info("Shutting down — closing browser...")
+                await _browser.close()
+                log.info("Browser closed")
 
 
 app = FastAPI(
