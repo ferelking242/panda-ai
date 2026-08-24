@@ -38,6 +38,10 @@ COPY .env.example ./
 # Create data directories
 RUN mkdir -p browser_data logs downloads/images
 
+# Containers have no display — Chromium MUST be headless (CI healthcheck depends on it)
+ENV HEADLESS=true \
+    LOG_LEVEL=INFO
+
 EXPOSE 8000
 
 # Health check
