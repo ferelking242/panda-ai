@@ -12,10 +12,14 @@ Features:
 from __future__ import annotations
 
 import hashlib
+import json
+import os
 import secrets
 import time
 from dataclasses import dataclass, field, asdict
 from typing import Optional
+
+from src.config import Config
 
 # ── Token format ───────────────────────────────────────────────
 
@@ -83,16 +87,47 @@ class TokenMeta:
         }
 
 
-# ── Token store (in-memory, per-process) ───────────────────────
+# ── Token store (persisted to disk) ────────────────────────────
+
+_PERSIST_PATH = Config.PROJECT_ROOT / ".panda_tokens.json"
+
 
 class TokenStore:
     """
-    In-memory token store. Maps hashed tokens to their metadata.
-    Survives config reloads within the same process.
+    Token store persisted to .panda_tokens.json (chmod 600).
+
+    Tokens survive gateway restarts — essential on a VPS where the
+    dashboard holds a session cookie tied to a generated token.
+    Only SHA-256 hashes are stored, never the raw tokens.
     """
 
     def __init__(self) -> None:
         self._tokens: dict[str, TokenMeta] = {}
+        self._load()
+
+    def _load(self) -> None:
+        """Load persisted tokens. A corrupt file starts fresh (never crash)."""
+        try:
+            if _PERSIST_PATH.exists():
+                data = json.loads(_PERSIST_PATH.read_text(encoding="utf-8"))
+                for hashed, meta_dict in data.items():
+                    try:
+                        self._tokens[hashed] = TokenMeta(**meta_dict)
+                    except Exception:
+                        continue
+        except Exception:
+            self._tokens = {}
+
+    def _save(self) -> None:
+        """Atomically persist hashes+metadata with restrictive permissions."""
+        try:
+            payload = {h: m.to_dict() for h, m in self._tokens.items()}
+            tmp = _PERSIST_PATH.with_suffix(".tmp")
+            tmp.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+            os.chmod(tmp, 0o600)
+            os.replace(tmp, _PERSIST_PATH)
+        except Exception:
+            pass  # persistence is best-effort; auth still works in-memory
 
     def register(self, token: str, meta: TokenMeta | None = None) -> TokenMeta:
         """Register a new token. Returns its metadata."""
@@ -100,6 +135,7 @@ class TokenStore:
         if meta is None:
             meta = TokenMeta()
         self._tokens[hashed] = meta
+        self._save()
         return meta
 
     def validate(self, token: str) -> TokenMeta | None:
@@ -115,7 +151,10 @@ class TokenStore:
     def revoke(self, token: str) -> bool:
         """Remove a token. Returns True if it existed."""
         hashed = hash_token(token)
-        return self._tokens.pop(hashed, None) is not None
+        removed = self._tokens.pop(hashed, None) is not None
+        if removed:
+            self._save()
+        return removed
 
     def list_tokens(self) -> list[dict]:
         """List all tokens (hashed keys + metadata)."""
