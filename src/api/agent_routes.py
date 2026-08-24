@@ -250,11 +250,16 @@ async def list_providers() -> list[ProviderInfo]:
 
 @agent_router.get("/models")
 async def list_all_models() -> dict:
-    """List models for ALL providers (hardcoded defaults + live if available)."""
-    return {
-        p["id"]: p["models"]
-        for p in ALL_PROVIDERS
-    }
+    """List models for the active provider only.
+    
+    Only the currently connected provider's models are returned so clients
+    don't try to use models from disconnected providers.
+    """
+    active = Config.PROVIDER
+    active_data = next((p for p in ALL_PROVIDERS if p["id"] == active), None)
+    if not active_data:
+        return {}
+    return {active: active_data["models"]}
 
 
 @agent_router.get("/models/active")

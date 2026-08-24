@@ -851,13 +851,20 @@ def detect_provider_from_model(model_name: str) -> str | None:
 
 @openai_router.get("/v1/models", response_model=ModelListResponse)
 async def list_models() -> ModelListResponse:
-    """List ALL models from ALL providers."""
-    models = []
-    for provider_id, pdata in ALL_PROVIDER_MODELS.items():
-        for m in pdata["models"]:
-            models.append(
-                ModelObject(id=m, owned_by=pdata["owned_by"])
-            )
+    """List models from the active provider only.
+    
+    Only the currently connected provider's models are returned so clients
+    don't try to use models that would fail with 404.
+    """
+    active = Config.PROVIDER
+    pdata = ALL_PROVIDER_MODELS.get(active)
+    if not pdata:
+        # Unknown provider — return empty
+        return ModelListResponse(data=[])
+    models = [
+        ModelObject(id=m, owned_by=pdata["owned_by"])
+        for m in pdata["models"]
+    ]
     return ModelListResponse(data=models)
 
 
@@ -1109,6 +1116,21 @@ async def create_chat_completion(
     requested_model = request.model or Config.default_model()
     detected_provider = detect_provider_from_model(requested_model)
     target_provider = detected_provider or Config.PROVIDER
+
+    # ── Reject models from disconnected providers ─────────────
+    if detected_provider and detected_provider != Config.PROVIDER:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": {
+                    "type": "provider_not_connected",
+                    "message": f"Model '{requested_model}' requires {detected_provider}, but only '{Config.PROVIDER}' is connected. Import cookies for {detected_provider} via the dashboard.",
+                    "requested_model": requested_model,
+                    "required_provider": detected_provider,
+                    "active_provider": Config.PROVIDER,
+                }
+            },
+        )
 
     # ── Cache check ──────────────────────────────────────────
     cache = get_cache()
