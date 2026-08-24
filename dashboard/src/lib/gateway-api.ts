@@ -220,6 +220,7 @@ export const gatewayApi = {
   providers: () => get<ProviderInfo[]>("/api/agent/providers"),
   profile: () => get<ProfileInfo>("/api/agent/profile"),
   allModels: () => get<Record<string, string[]>>("/api/agent/models"),
+  activeModels: () => get<{ provider: string; models: string[]; live: boolean }>("/api/agent/models/active"),
 
   // Sub-agents
   subAgents: () => get<{ agents: unknown[]; total: number; available: number }>("/api/agent/sub-agents"),
