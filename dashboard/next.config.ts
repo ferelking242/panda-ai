@@ -8,6 +8,9 @@ const API_ORIGIN = process.env.API_ORIGIN || "http://127.0.0.1:8000";
 const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react", "@radix-ui/react-icons"],
+    // Static generation workers — keep low so the build fits in
+    // constrained environments (2 GB containers, small VPS).
+    cpus: 1,
   },
   allowedDevOrigins: [
     "127.0.0.1",
