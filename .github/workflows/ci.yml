@@ -133,7 +133,7 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tail -30
+          ./gradlew assembleDebug --no-daemon --stacktrace
       - name: Verify APK exists
         run: |
           ls -lh android/app/build/outputs/apk/debug/app-debug.apk || (echo 'APK not found' && exit 1)
@@ -151,7 +151,7 @@ jobs:
       - run: docker build -t panda-ai:latest .
       - name: Test Docker
         run: |
-          docker run -d --name test -p 8000:8000 panda-ai:latest
+          docker run -d --name test --shm-size=1g -p 8000:8000 panda-ai:latest
           for i in $(seq 1 30); do
             curl -sf http://localhost:8000/healthz > /dev/null 2>&1 && echo 'OK' && docker stop test && exit 0
             sleep 2
