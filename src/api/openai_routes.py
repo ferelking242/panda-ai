@@ -810,25 +810,54 @@ async def pool_status() -> dict:
         }
 
 
+ALL_PROVIDER_MODELS = {
+    "chatgpt":  {"owned_by": "openai",      "models": _CHATGPT_MODELS},
+    "claude":   {"owned_by": "anthropic",   "models": _CLAUDE_MODELS},
+    "gemini":   {"owned_by": "google",      "models": _GEMINI_MODELS},
+    "deepseek": {"owned_by": "deepseek",    "models": _DEEPSEEK_MODELS},
+    "grok":     {"owned_by": "xai",         "models": _GROK_MODELS},
+    "mistral":  {"owned_by": "mistral",     "models": _MISTRAL_MODELS},
+    "qwen":     {"owned_by": "alibaba",     "models": _QWEN_MODELS},
+    "kimi":     {"owned_by": "moonshot",    "models": _KIMI_MODELS},
+}
+
+# Map model name prefix → provider for auto-routing
+_MODEL_PROVIDER_MAP: dict[str, str] = {}
+for _pid, _pdata in ALL_PROVIDER_MODELS.items():
+    for _mid in _pdata["models"]:
+        _MODEL_PROVIDER_MAP[_mid] = _pid
+
+
+def detect_provider_from_model(model_name: str) -> str | None:
+    """Detect which provider owns a model name."""
+    if model_name in _MODEL_PROVIDER_MAP:
+        return _MODEL_PROVIDER_MAP[model_name]
+    # Fuzzy: check prefixes
+    lower = model_name.lower()
+    for prefix, provider in [
+        ("gpt-", "chatgpt"), ("o1", "chatgpt"), ("o3", "chatgpt"), ("catgpt", "chatgpt"),
+        ("claude-", "claude"),
+        ("gemini-", "gemini"),
+        ("deepseek-", "deepseek"),
+        ("grok-", "grok"),
+        ("mistral-", "mistral"), ("codestral", "mistral"), ("pixtral", "mistral"),
+        ("qwen-", "qwen"), ("qwq-", "qwen"),
+        ("kimi-", "kimi"), ("moonshot-", "kimi"),
+    ]:
+        if lower.startswith(prefix):
+            return provider
+    return None
+
+
 @openai_router.get("/v1/models", response_model=ModelListResponse)
 async def list_models() -> ModelListResponse:
-    """List available models for the active provider."""
-    provider = Config.PROVIDER
-    owned_by_map = {
-        "chatgpt": "openai",
-        "claude": "anthropic",
-        "gemini": "google",
-        "deepseek": "deepseek",
-        "grok": "xai",
-        "mistral": "mistral",
-        "qwen": "alibaba",
-        "kimi": "moonshot",
-    }
-    owned_by = owned_by_map.get(provider, "panda-gateway")
-    models = [
-        ModelObject(id=m, owned_by=owned_by)
-        for m in _models_for_provider()
-    ]
+    """List ALL models from ALL providers."""
+    models = []
+    for provider_id, pdata in ALL_PROVIDER_MODELS.items():
+        for m in pdata["models"]:
+            models.append(
+                ModelObject(id=m, owned_by=pdata["owned_by"])
+            )
     return ModelListResponse(data=models)
 
 
@@ -1076,24 +1105,28 @@ async def create_chat_completion(
     if not request.messages:
         raise HTTPException(status_code=400, detail="messages array cannot be empty")
 
+    # ── Detect provider from model name ──────────────────────
+    requested_model = request.model or Config.default_model()
+    detected_provider = detect_provider_from_model(requested_model)
+    target_provider = detected_provider or Config.PROVIDER
+
     # ── Cache check ──────────────────────────────────────────
-    # Skip cache for tool-calling requests (non-deterministic by nature)
     cache = get_cache()
     use_cache = cache.enabled and not request.tools
     if use_cache:
         cached = await cache.get(
-            Config.PROVIDER,
-            request.model or Config.default_model(),
+            target_provider,
+            requested_model,
             request.messages,
         )
         if cached is not None:
             return cached
 
-    # ── Try primary provider, then fallback chain ────────────
+    # ── Try target provider, then fallback chain ─────────────
     last_error: Exception | None = None
 
     # Build the ordered list: (provider_name, pool_or_client, is_primary)
-    candidates: list[tuple[str, object, bool]] = [(Config.PROVIDER, _pool or _client, True)]
+    candidates: list[tuple[str, object, bool]] = [(target_provider, _pool or _client, True)]
     candidates.extend((p, c, False) for p, c in _fallback_chain)
 
     for provider_name, provider_handle, is_primary in candidates:
@@ -1250,6 +1283,26 @@ async def _do_chat_completion(
     # Start a fresh conversation to avoid thread exhaustion
     await _ensure_fresh_chat(client)
 
+    # ── Check login status before sending ──────────────
+    try:
+        if hasattr(client, 'browser') and client.browser:
+            logged_in = await client.browser.is_logged_in()
+            if not logged_in:
+                raise HTTPException(
+                    status_code=401,
+                    detail={
+                        "error": {
+                            "type": "login_required",
+                            "message": f"Login required on {active_provider}. Import cookies or log in via the dashboard.",
+                            "provider": active_provider,
+                        }
+                    },
+                )
+    except HTTPException:
+        raise
+    except Exception:
+        pass  # Login check is best-effort
+
     # ── Send to provider ────────────────────────────────
     try:
         result = await client.send_message(
@@ -1258,8 +1311,54 @@ async def _do_chat_completion(
             file_paths=file_paths or None,
         )
     except Exception as e:
-        log.error(f"Provider error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Provider error: {str(e)}")
+        error_msg = str(e).lower()
+        # Detect specific error types
+        if "rate limit" in error_msg or "too many" in error_msg:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": {
+                        "type": "rate_limit",
+                        "message": f"Rate limit reached on {active_provider}. Try again later or switch provider.",
+                        "provider": active_provider,
+                    }
+                },
+            )
+        elif "login" in error_msg or "unauthorized" in error_msg or "session" in error_msg:
+            raise HTTPException(
+                status_code=401,
+                detail={
+                    "error": {
+                        "type": "login_required",
+                        "message": f"Session expired on {active_provider}. Re-import cookies via the dashboard.",
+                        "provider": active_provider,
+                    }
+                },
+            )
+        elif "limit" in error_msg and ("chat" in error_msg or "message" in error_msg):
+            # Chat limit reached — try to start a new chat
+            log.info(f"Chat limit reached on {active_provider}, starting new chat...")
+            try:
+                await client.new_chat()
+                result = await client.send_message(
+                    prompt,
+                    image_paths=image_paths or None,
+                    file_paths=file_paths or None,
+                )
+            except Exception as e2:
+                raise HTTPException(
+                    status_code=429,
+                    detail={
+                        "error": {
+                            "type": "chat_limit",
+                            "message": f"Chat limit reached on {active_provider} and new chat failed: {e2}",
+                            "provider": active_provider,
+                        }
+                    },
+                )
+        else:
+            log.error(f"Provider error: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Provider error: {str(e)}")
 
     response_text = result.message
     elapsed_ms = int((time.time() - start_time) * 1000)
