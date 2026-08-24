@@ -1,5 +1,10 @@
 import type { NextConfig } from "next";
 
+// Origin of the Python gateway API.
+// - Native install: http://127.0.0.1:8000 (default)
+// - Docker:         http://panda-ai:8000 (service name)
+const API_ORIGIN = process.env.API_ORIGIN || "http://127.0.0.1:8000";
+
 const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react", "@radix-ui/react-icons"],
@@ -24,12 +29,12 @@ const nextConfig: NextConfig = {
 
   async rewrites() {
     return [
-      { source: "/api/dashboard/:path*", destination: "http://127.0.0.1:8000/api/dashboard/:path*" },
-      { source: "/v1/:path*",            destination: "http://127.0.0.1:8000/v1/:path*" },
-      { source: "/threads",              destination: "http://127.0.0.1:8000/threads" },
-      { source: "/chat",                 destination: "http://127.0.0.1:8000/chat" },
-      { source: "/status",               destination: "http://127.0.0.1:8000/status" },
-      { source: "/healthz",              destination: "http://127.0.0.1:8000/healthz" },
+      { source: "/api/dashboard/:path*", destination: `${API_ORIGIN}/api/dashboard/:path*` },
+      { source: "/v1/:path*",            destination: `${API_ORIGIN}/v1/:path*` },
+      { source: "/threads",              destination: `${API_ORIGIN}/threads` },
+      { source: "/chat",                 destination: `${API_ORIGIN}/chat` },
+      { source: "/status",               destination: `${API_ORIGIN}/status` },
+      { source: "/healthz",              destination: `${API_ORIGIN}/healthz` },
     ];
   },
 
