@@ -432,10 +432,9 @@ class BearerTokenMiddleware:
 
     OPEN_PATHS = {
         b"/docs", b"/redoc", b"/openapi.json", b"/healthz", b"/client", b"/client.html",
-        # Dashboard endpoints (no auth needed for initial load + token setup)
-        b"/api/dashboard/config", b"/api/dashboard/stats",
-        b"/api/dashboard/token/generate",
     }
+    # All dashboard API endpoints are open (the dashboard UI needs them before auth)
+    OPEN_PREFIXES = (b"/api/dashboard/",)
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
@@ -453,6 +452,11 @@ class BearerTokenMiddleware:
         path = scope.get("path", "").encode() if isinstance(scope.get("path"), str) else scope.get("raw_path", b"")
         path_str = scope.get("path", "")
         if path_str in self.OPEN_PATHS or path in self.OPEN_PATHS:
+            await self.app(scope, receive, send)
+            return
+
+        # Dashboard: all /api/dashboard/* endpoints are open (UI loads before auth)
+        if path_str.startswith("/api/dashboard/") or path.startswith(b"/api/dashboard/"):
             await self.app(scope, receive, send)
             return
 
