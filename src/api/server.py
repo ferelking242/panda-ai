@@ -431,7 +431,9 @@ class BearerTokenMiddleware:
     """
 
     OPEN_PATHS = {
-        b"/docs", b"/redoc", b"/openapi.json", b"/healthz", b"/client", b"/client.html",
+        b"/docs", b"/redoc", b"/openapi.json", b"/healthz",
+        b"/client", b"/client.html",
+        b"/status",
     }
     # All dashboard API endpoints are open (the dashboard UI needs them before auth)
     OPEN_PREFIXES = (b"/api/dashboard/",)
