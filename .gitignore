@@ -21,6 +21,14 @@ build/
 .env
 .env.local
 
+# Tokens / secrets
+.panda_tokens.json
+.panda_tokens.tmp
+.panda_bootstrap_token
+
+# Local dev scripts
+.dev/
+
 # IDE
 .vscode/
 .idea/
