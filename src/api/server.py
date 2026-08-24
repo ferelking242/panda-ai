@@ -86,9 +86,40 @@ def _provider_url_for(provider: str) -> str:
 # Global instances — needed for lifespan
 _browser: BrowserManager | None = None
 _client: ChatGPTClient | ClaudeClient | None = None
+_pool = None  # BrowserPool when POOL_SIZE > 1, else None
 
 # Fallback pools — keyed by provider name, closed on shutdown
 _fallback_pools: list = []
+
+
+def _ensure_bootstrap_token() -> None:
+    """Génère un premier token pnd_ si aucune auth n'est configurée.
+
+    Sans cela, une installation VPS fraîche est verrouillée : tous les
+    endpoints répondent 401, y compris /api/dashboard/token/generate.
+    Le token est écrit dans .panda_bootstrap_token (chmod 600) et seul le
+    chemin est loggé — jamais la valeur elle-même.
+    """
+    from src.tokens import generate_token, token_store, TokenMeta
+
+    if Config.API_TOKEN:
+        return
+    if token_store.list_tokens():  # tokens persisted across restarts
+        return
+
+    token = generate_token()
+    token_store.register(token, TokenMeta(name="bootstrap"))
+    path = Config.PROJECT_ROOT / ".panda_bootstrap_token"
+    try:
+        path.write_text(token + "\n", encoding="utf-8")
+        path.chmod(0o600)
+        log.warning(
+            "No API_TOKEN configured — bootstrap token generated.\n"
+            f"  → Read it with: cat {path}\n"
+            "  Use it as 'Authorization: Bearer <token>' or paste it in the dashboard."
+        )
+    except Exception as e:
+        log.error(f"Could not persist bootstrap token file: {e}")
 
 
 async def _setup_fallback_chain(mode: str, primary_provider: str) -> None:
@@ -138,7 +169,7 @@ async def lifespan(app: FastAPI):
       - cdp              : connexion à un Chrome existant via DevTools Protocol
       - android          : AndroidPage — bridge HTTP vers Flutter WebView
     """
-    global _browser, _client
+    global _browser, _client, _pool
 
     mode = Config.BROWSER_MODE
     _provider_names = {
@@ -153,8 +184,9 @@ async def lifespan(app: FastAPI):
     provider_name = _provider_names.get(Config.PROVIDER, "ChatGPT")
     target_url = Config.provider_url()
 
-    # ── Init response cache ──────────────────────────────────────
+    # ── Init response cache + auth bootstrap ──────────────────────
     init_cache()
+    _ensure_bootstrap_token()
 
     log.info(f"Starting gateway — mode={mode}, provider={provider_name}")
 
@@ -269,6 +301,7 @@ async def lifespan(app: FastAPI):
             # ── Pool mode: N browsers en parallèle ───────────────────────
             log.info(f"Launch mode — pool of {pool_size} browsers (provider={provider_name})")
             pool = await init_pool(size=pool_size, provider=Config.PROVIDER)
+            _pool = pool
             set_pool(pool)
 
             # For legacy routes (dashboard_routes, routes.py) inject the first slot's client
@@ -276,6 +309,8 @@ async def lifespan(app: FastAPI):
             if first_slot.client:
                 set_client(first_slot.client, first_slot.browser)
                 set_openai_client(first_slot.client)
+                set_agent_references(first_slot.client, first_slot.browser)
+                set_ws_references(first_slot.client, pool)
 
             # ── Fallback chain (if configured) ───────────────────────────
             await _setup_fallback_chain(mode="pool", primary_provider=Config.PROVIDER)
@@ -298,6 +333,7 @@ async def lifespan(app: FastAPI):
             # ── Single browser mode (default, POOL_SIZE=1) ────────────────
             log.info("Launch mode — single browser (provider={})".format(provider_name))
             _browser = BrowserManager()
+            _pool = None
             page = await _browser.start()
 
             log.info(f"Provider: {provider_name} ({target_url})")
@@ -338,7 +374,7 @@ async def lifespan(app: FastAPI):
             set_client(_client, _browser)
             set_openai_client(_client)
             set_agent_references(_client, _browser)
-            set_ws_references(_client, _pool)
+            set_ws_references(_client, None)  # no pool in single mode
 
             # ── Fallback chain (if configured) ───────────────────────────
             await _setup_fallback_chain(mode="single", primary_provider=Config.PROVIDER)
@@ -463,12 +499,6 @@ app.include_router(ws_router)
 @app.get("/healthz", include_in_schema=False)
 async def healthz():
     """Unauthenticated health-check for Docker / load-balancers."""
-    return {"status": "ok"}
-
-
-@app.get("/healthz", include_in_schema=False)
-async def healthz_root():
-    """Alias for /healthz."""
     return {"status": "ok"}
 
 
