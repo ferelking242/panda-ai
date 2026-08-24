@@ -23,11 +23,11 @@ const nextConfig: NextConfig = {
   ],
 
   images: {
+    unoptimized: true,
     remotePatterns: [
       { protocol: "https", hostname: "ui.shadcn.com" },
       { protocol: "https", hostname: "images.unsplash.com" },
     ],
-    formats: ["image/webp", "image/avif"],
   },
 
   async rewrites() {
