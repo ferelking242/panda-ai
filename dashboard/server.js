@@ -8,7 +8,11 @@ const { parse }        = require('url')           // Next.js handle() requires u
 const fs               = require('fs')
 const path             = require('path')
 const next             = require('next')
-const httpProxy        = require('http-proxy')
+let httpProxy = null
+try { httpProxy = require('http-proxy') } catch { /* optional: VNC proxy not available */ }
+
+process.on('uncaughtException', (err) => { console.error('[FATAL]', err); process.exit(1) })
+process.on('unhandledRejection', (err) => { console.error('[UNHANDLED]', err); process.exit(1) })
 
 const dev    = process.env.NODE_ENV !== 'production'
 const port   = parseInt(process.env.PORT || '5000', 10)
@@ -58,15 +62,17 @@ function isApiPath(pathname) {
 const app    = next({ dev, hostname: '0.0.0.0', port })
 const handle = app.getRequestHandler()
 
-const proxy  = httpProxy.createProxyServer({ changeOrigin: true })
+const proxy = httpProxy ? httpProxy.createProxyServer({ changeOrigin: true }) : null
 
-proxy.on('error', (err, _req, res) => {
-  const msg = `[vnc-proxy] ${err.message}`
-  console.error(msg)
-  if (res && typeof res.writeHead === 'function' && !res.headersSent) {
-    res.writeHead(502).end(msg)
-  }
-})
+if (proxy) {
+  proxy.on('error', (err, _req, res) => {
+    const msg = `[vnc-proxy] ${err.message}`
+    console.error(msg)
+    if (res && typeof res.writeHead === 'function' && !res.headersSent) {
+      res.writeHead(502).end(msg)
+    }
+  })
+}
 
 app.prepare().then(() => {
   const server = createServer((req, res) => {
@@ -74,7 +80,7 @@ app.prepare().then(() => {
     const parsedUrl = parse(req.url || '/', true)
     const { pathname = '/' } = parsedUrl
 
-    if (pathname === '/vnc' || pathname.startsWith('/vnc/')) {
+    if (proxy && (pathname === '/vnc' || pathname.startsWith('/vnc/'))) {
       req.url = forwardVncPath(req.url)
       proxy.web(req, res, { target: VNC_HTTP })
     } else if (isApiPath(pathname)) {
@@ -88,12 +94,14 @@ app.prepare().then(() => {
   })
 
   // WebSocket upgrades — required for noVNC's VNC-over-WebSocket
-  server.on('upgrade', (req, socket, head) => {
-    if (req.url && (req.url === '/vnc' || req.url.startsWith('/vnc/'))) {
-      req.url = forwardVncPath(req.url, true)
-      proxy.ws(req, socket, head, { target: VNC_WS })
-    }
-  })
+  if (proxy) {
+    server.on('upgrade', (req, socket, head) => {
+      if (req.url && (req.url === '/vnc' || req.url.startsWith('/vnc/'))) {
+        req.url = forwardVncPath(req.url, true)
+        proxy.ws(req, socket, head, { target: VNC_WS })
+      }
+    })
+  }
 
   server.listen(port, '0.0.0.0', () => {
     console.log(`\n> Panda Dashboard  : http://localhost:${port}`)
