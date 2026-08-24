@@ -24,5 +24,27 @@ services:
       - ./logs:/app/logs
     restart: unless-stopped
 
+  # Next.js dashboard — first boot builds the app (1-2 min), be patient.
+  panda-dashboard:
+    image: node:20-alpine
+    container_name: panda-dashboard
+    working_dir: /dashboard
+    command: sh -c "npm install --no-audit --no-fund && npm run build && npm run start"
+    environment:
+      - API_ORIGIN=http://panda-ai:8000
+      - PORT=5000
+      - NODE_ENV=production
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./dashboard:/dashboard
+      - panda_dashboard_node_modules:/dashboard/node_modules
+      - panda_dashboard_next:/dashboard/.next
+    depends_on:
+      - panda-ai
+    restart: unless-stopped
+
 volumes:
   panda_browser_data:
+  panda_dashboard_node_modules:
+  panda_dashboard_next:
