@@ -12,10 +12,20 @@ import random
 import signal
 import socket
 from pathlib import Path
-from patchright.async_api import async_playwright, BrowserContext, Page, Playwright
+try:
+    from patchright.async_api import async_playwright, BrowserContext, Page, Playwright
+except (ImportError, ModuleNotFoundError):
+    # patchright not available (ARM64 Alpine / missing wheels)
+    async_playwright = None
+    BrowserContext = None
+    Page = None
+    Playwright = None
 
 from src.config import Config
-from src.browser.stealth import apply_stealth
+try:
+    from src.browser.stealth import apply_stealth
+except (ImportError, ModuleNotFoundError):
+    apply_stealth = None
 from src.log import setup_logging
 
 log = setup_logging("browser")
@@ -196,6 +206,12 @@ class BrowserManager:
         Automatically cleans up stale lock files from previous crashed sessions.
         Returns the active page ready for navigation.
         """
+        if async_playwright is None:
+            raise RuntimeError(
+                "patchright is not installed on this platform.\n"
+                "Install it with: pip install patchright && patchright install chromium\n"
+                "Or use BROWSER_MODE=http for cookie-based HTTP mode (no browser needed)."
+            )
         self._user_data_dir.mkdir(parents=True, exist_ok=True)
         Config.ensure_dirs()
 

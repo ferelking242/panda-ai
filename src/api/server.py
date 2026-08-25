@@ -21,10 +21,26 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from src.browser.manager import BrowserManager
-from src.browser.auto_login import ensure_logged_in
-from src.browser.android_page import AndroidPage
-from src.browser.pool import init_pool, close_pool
+try:
+    from src.browser.manager import BrowserManager
+except (ImportError, ModuleNotFoundError):
+    BrowserManager = None
+
+try:
+    from src.browser.auto_login import ensure_logged_in
+except (ImportError, ModuleNotFoundError):
+    ensure_logged_in = None
+
+try:
+    from src.browser.android_page import AndroidPage
+except (ImportError, ModuleNotFoundError):
+    AndroidPage = None
+
+try:
+    from src.browser.pool import init_pool, close_pool
+except (ImportError, ModuleNotFoundError):
+    init_pool = None
+    close_pool = None
 from src.chatgpt.client import ChatGPTClient
 from src.claude.client import ClaudeClient
 from src.config import Config
@@ -296,6 +312,24 @@ async def lifespan(app: FastAPI):
     else:
         # ── Mode launch (défaut) : Patchright lance Chromium ─────────────
         pool_size = Config.POOL_SIZE
+
+        # ── Fallback si patchright n'est pas installé ──────────────────
+        if BrowserManager is None:
+            log.warning(
+                "patchright not available — server starting in DEGRADED mode (no browser).\n"
+                "Install patchright: pip install patchright && patchright install chromium\n"
+                "Or run: bash scripts/setup_glibc.sh (Alpine/musl)"
+            )
+            _browser = None
+            _pool = None
+            _client = None
+
+            set_client(None, None)
+            set_openai_client(None)
+            log.info(f"API server ready — DEGRADED mode, provider={provider_name} (no browser)")
+
+            yield
+            return
 
         if pool_size > 1:
             # ── Pool mode: N browsers en parallèle ───────────────────────

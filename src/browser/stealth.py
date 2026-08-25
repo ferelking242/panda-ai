@@ -14,16 +14,24 @@ from __future__ import annotations
 
 import os
 
-from patchright.async_api import BrowserContext, Page, Frame
-from playwright_stealth import Stealth
+try:
+    from patchright.async_api import BrowserContext, Page, Frame
+except (ImportError, ModuleNotFoundError):
+    BrowserContext = None
+    Page = None
+    Frame = None
+
+try:
+    from playwright_stealth import Stealth
+    _stealth = Stealth()
+    _STEALTH_JS: str = _stealth.script_payload
+except (ImportError, ModuleNotFoundError):
+    _stealth = None
+    _STEALTH_JS = ""
 
 from src.log import setup_logging
 
 log = setup_logging("stealth")
-
-# Single Stealth instance; grab the JS payload once
-_stealth = Stealth()
-_STEALTH_JS: str = _stealth.script_payload
 
 # Track whether we're in Docker (add_init_script is unsafe there)
 _IN_DOCKER: bool = os.path.exists("/.dockerenv") or os.environ.get("DISPLAY") == ":99"

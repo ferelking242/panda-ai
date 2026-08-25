@@ -1,28 +1,19 @@
-# Core
-patchright>=1.58
-playwright-stealth>=2.0.2
-
-# TUI (Phase 2)
-textual>=0.85
-typer>=0.12
-rich>=13.0
-
-# API (Phase 3)
+# ── Core (installé sur TOUTES les plateformes) ──────────────────
 fastapi>=0.115
 uvicorn>=0.32
-
-# Data & Config
 pydantic>=2.5
 python-dotenv>=1.0
-
-# Android bridge HTTP client
 httpx>=0.27
-
-# OpenAI-compatible testing
+rich>=13.0
+textual>=0.85
+typer>=0.12
 openai>=1.0
 langchain-openai>=0.1
 langchain>=0.2
+pypdf>=4.0
 
-# Media pipeline
-pypdf>=4.0          # PDF text extraction
-# faster-whisper>=1.0  # optional: local audio transcription (CPU)
+# ── Browser (x86_64 + glibc / ARM64 + glibc) ──────────────────
+# Sur ARM64 Alpine : exécuter bash scripts/setup_glibc.sh AVANT pip install
+# Si ça échoue → le serveur démarre en mode HTTP (pas de navigateur)
+patchright>=1.58
+playwright-stealth>=2.0.2
